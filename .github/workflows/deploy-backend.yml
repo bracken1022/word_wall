@@ -6,15 +6,17 @@ on:
     paths:
       - 'backend/**'
       - 'ecs-task-definition.json'
+      - '.aws/task-definition.json'
       - '.github/workflows/deploy-backend.yml'
   pull_request:
     branches: [main]
     paths:
       - 'backend/**'
       - 'ecs-task-definition.json'
+      - '.aws/task-definition.json'
 
 env:
-  AWS_REGION: us-east-1
+  AWS_REGION: ap-southeast-1
   ECR_REPOSITORY: words-wall-backend
   ECS_SERVICE: words-wall-backend-service
   ECS_CLUSTER: words-wall-cluster
@@ -93,7 +95,7 @@ jobs:
         id: task-def
         uses: aws-actions/amazon-ecs-render-task-definition@v1
         with:
-          task-definition: ecs-task-definition.json
+          task-definition: .aws/task-definition.json
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.build-image.outputs.image }}
 
