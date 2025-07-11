@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'ecs-task-definition.json'
       - '.github/workflows/deploy-backend.yml'
   pull_request:
     branches: [main]
     paths:
       - 'backend/**'
+      - 'ecs-task-definition.json'
 
 env:
   AWS_REGION: us-east-1
