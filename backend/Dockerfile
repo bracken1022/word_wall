@@ -38,8 +38,8 @@ RUN yarn install --frozen-lockfile --production && yarn cache clean
 # Copy built application from builder stage
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 
-# Copy additional files if needed
-COPY --chown=nestjs:nodejs QWEN_SETUP.md ./
+# Copy additional files if needed (commenting out for now)
+# COPY --chown=nestjs:nodejs QWEN_SETUP.md ./
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/uploads && chown nestjs:nodejs /app/uploads
