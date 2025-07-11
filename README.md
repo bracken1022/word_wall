@@ -39,7 +39,7 @@
 
 ### Prerequisites
 
-- **Node.js** (v18 or higher)
+- **Node.js** (v20.11 or higher)
 - **Yarn** package manager
 - **Ollama** for local AI processing
 

@@ -254,7 +254,7 @@ cd backend && yarn test
 cd frontend && yarn build
 
 # Check Node.js version
-node --version # Should be 18+
+node --version # Should be 20.11+
 ```
 
 #### ❌ **Permission Issues**
