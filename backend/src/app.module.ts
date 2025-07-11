@@ -7,6 +7,7 @@ import { UserModule } from './user/user.module';
 import { WordModule } from './word/word.module';
 import { LabelModule } from './label/label.module';
 import { AdminModule } from './admin/admin.module';
+import { HealthModule } from './health/health.module';
 import { Sticker } from './sticker/sticker.entity';
 import { User } from './user/user.entity';
 import { Word } from './word/word.entity';
@@ -30,6 +31,7 @@ import { Label } from './label/label.entity';
     WordModule,
     LabelModule,
     AdminModule,
+    HealthModule,
   ],
 })
 export class AppModule {}
