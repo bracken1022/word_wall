@@ -1,0 +1,56 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - JWT_SECRET=local-development-secret-key
+      - DATABASE_URL=/app/data/words_wall.db
+    volumes:
+      - backend_data:/app/data
+      - backend_uploads:/app/uploads
+      - ./backend/src:/app/src  # For development hot reload
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    restart: unless-stopped
+    networks:
+      - words-wall-network
+
+  # Optional: Add frontend for full-stack local testing
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://localhost:3001
+    depends_on:
+      backend:
+        condition: service_healthy
+    volumes:
+      - ./frontend/src:/app/src  # For development hot reload
+    restart: unless-stopped
+    networks:
+      - words-wall-network
+
+volumes:
+  backend_data:
+    driver: local
+  backend_uploads:
+    driver: local
+
+networks:
+  words-wall-network:
+    driver: bridge
