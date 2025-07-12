@@ -99,13 +99,33 @@ jobs:
           container-name: ${{ env.CONTAINER_NAME }}
           image: ${{ steps.build-image.outputs.image }}
 
+      - name: 🔍 Check if ECS service exists
+        id: check-service
+        run: |
+          SERVICE_STATUS=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].status' \
+            --output text 2>/dev/null || echo "MISSING")
+          echo "service-status=$SERVICE_STATUS" >> $GITHUB_OUTPUT
+
       - name: 🚀 Deploy Amazon ECS task definition
         uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        if: steps.check-service.outputs.service-status == 'ACTIVE'
         with:
           task-definition: ${{ steps.task-def.outputs.task-definition }}
           service: ${{ env.ECS_SERVICE }}
           cluster: ${{ env.ECS_CLUSTER }}
           wait-for-service-stability: true
+
+      - name: ⚠️ Service creation required
+        if: steps.check-service.outputs.service-status != 'ACTIVE'
+        run: |
+          echo "::warning::ECS service '${{ env.ECS_SERVICE }}' does not exist or is not active."
+          echo "Please create the service manually or run the create-ecs-service.sh script."
+          echo "Service status: ${{ steps.check-service.outputs.service-status }}"
+          exit 1
 
       - name: 📊 Deployment summary
         run: |
