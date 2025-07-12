@@ -42,9 +42,9 @@ import { Label } from './label/label.entity';
             port: dbConfig.port || 5432,
             username: dbConfig.username,
             password: dbConfig.password,
-            database: dbConfig.dbInstanceIdentifier || 'wordswall',
+            database: dbConfig.database || dbConfig.dbInstanceIdentifier || 'wordswall',
             entities: [Sticker, User, Word, Label],
-            synchronize: false, // Never use synchronize in production
+            synchronize: true, // Temporarily enable to create tables
             ssl: {
               rejectUnauthorized: false,
             },
