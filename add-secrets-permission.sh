@@ -18,7 +18,8 @@ cat > secrets-policy.json << EOF
                 "secretsmanager:GetSecretValue"
             ],
             "Resource": [
-                "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:DATABASE_URL*"
+                "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:DATABASE_URL*",
+                "arn:aws:secretsmanager:${REGION}:${ACCOUNT_ID}:secret:JWT_SECRET*"
             ]
         }
     ]
