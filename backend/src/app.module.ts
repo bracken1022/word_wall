@@ -26,20 +26,29 @@ import { Label } from './label/label.entity';
         const databaseUrl = configService.get('DATABASE_URL');
         
         if (isProduction && databaseUrl) {
-          // Production: Use PostgreSQL
-          const url = new URL(databaseUrl);
+          // Production: Use PostgreSQL with Secrets Manager config
+          let dbConfig;
+          try {
+            // Parse JSON from Secrets Manager
+            dbConfig = typeof databaseUrl === 'string' ? JSON.parse(databaseUrl) : databaseUrl;
+          } catch (error) {
+            console.error('Failed to parse DATABASE_URL from Secrets Manager:', error);
+            throw new Error('Invalid DATABASE_URL configuration from Secrets Manager');
+          }
+          
           return {
             type: 'postgres',
-            host: url.hostname,
-            port: parseInt(url.port) || 5432,
-            username: url.username,
-            password: url.password,
-            database: url.pathname.slice(1),
+            host: dbConfig.host,
+            port: dbConfig.port || 5432,
+            username: dbConfig.username,
+            password: dbConfig.password,
+            database: dbConfig.dbInstanceIdentifier || 'wordswall',
             entities: [Sticker, User, Word, Label],
             synchronize: false, // Never use synchronize in production
             ssl: {
               rejectUnauthorized: false,
             },
+            logging: ['error'], // Only log errors in production
           };
         } else {
           // Development: Use SQLite
@@ -48,6 +57,7 @@ import { Label } from './label/label.entity';
             database: 'words_wall.db',
             entities: [Sticker, User, Word, Label],
             synchronize: true,
+            logging: true, // Enable logging in development
           };
         }
       },
