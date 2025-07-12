@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { StickerModule } from './sticker/sticker.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -19,11 +19,39 @@ import { Label } from './label/label.entity';
       isGlobal: true,
       envFilePath: '.env',
     }),
-    TypeOrmModule.forRoot({
-      type: 'sqlite',
-      database: 'words_wall.db',
-      entities: [Sticker, User, Word, Label],
-      synchronize: true,
+    TypeOrmModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => {
+        const isProduction = configService.get('NODE_ENV') === 'production';
+        const databaseUrl = configService.get('DATABASE_URL');
+        
+        if (isProduction && databaseUrl) {
+          // Production: Use PostgreSQL
+          const url = new URL(databaseUrl);
+          return {
+            type: 'postgres',
+            host: url.hostname,
+            port: parseInt(url.port) || 5432,
+            username: url.username,
+            password: url.password,
+            database: url.pathname.slice(1),
+            entities: [Sticker, User, Word, Label],
+            synchronize: false, // Never use synchronize in production
+            ssl: {
+              rejectUnauthorized: false,
+            },
+          };
+        } else {
+          // Development: Use SQLite
+          return {
+            type: 'sqlite',
+            database: 'words_wall.db',
+            entities: [Sticker, User, Word, Label],
+            synchronize: true,
+          };
+        }
+      },
+      inject: [ConfigService],
     }),
     StickerModule,
     AuthModule,
