@@ -1,4 +1,4 @@
-name: 🌐 Deploy Frontend to Vercel
+name: 🌐 Deploy Frontend to S3 + CloudFront
 
 on:
   push:
@@ -11,9 +11,14 @@ on:
     paths:
       - 'frontend/**'
 
+permissions:
+  contents: read
+  id-token: write
+
 env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  AWS_REGION: ap-southeast-1
+  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
+  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
 
 jobs:
   test:
@@ -46,52 +51,10 @@ jobs:
       - name: 🏗️ Build application
         run: yarn build
         env:
-          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
-
-  deploy-preview:
-    name: 🔍 Deploy Preview
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.event_name == 'pull_request'
-    defaults:
-      run:
-        working-directory: ./frontend
-
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Install Vercel CLI
-        run: npm install --global vercel@latest
-
-      - name: 🔗 Pull Vercel Environment Information
-        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: 🏗️ Build Project Artifacts
-        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: 🚀 Deploy Project Artifacts to Vercel
-        id: deploy
-        run: echo "url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})" >> $GITHUB_OUTPUT
-
-      - name: 💬 Comment Preview URL
-        uses: actions/github-script@v6
-        if: github.event_name == 'pull_request'
-        with:
-          script: |
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: `🚀 **Preview Deployment Ready!**
-              
-              📱 **Frontend Preview**: ${{ steps.deploy.outputs.url }}
-              
-              The mobile-responsive design has been deployed and is ready for testing on all devices.`
-            })
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
 
   deploy-production:
-    name: 🚀 Deploy to Production
+    name: 🚀 Deploy to S3 + CloudFront
     runs-on: ubuntu-latest
     needs: test
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -103,23 +66,51 @@ jobs:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
 
-      - name: 📦 Install Vercel CLI
-        run: npm install --global vercel@latest
+      - name: 📦 Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'yarn'
+          cache-dependency-path: frontend/yarn.lock
 
-      - name: 🔗 Pull Vercel Environment Information
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: 📥 Install dependencies
+        run: yarn install --frozen-lockfile
 
-      - name: 🏗️ Build Project Artifacts
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: 🏗️ Build application
+        run: yarn build
+        env:
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
 
-      - name: 🚀 Deploy Project Artifacts to Vercel
-        id: deploy
-        run: echo "url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})" >> $GITHUB_OUTPUT
+      - name: 🔧 Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: 📤 Deploy to S3
+        run: |
+          # Upload built files to S3
+          aws s3 sync out/ s3://${{ env.S3_BUCKET_NAME }} --delete
+          
+          # Set correct content types
+          aws s3 cp s3://${{ env.S3_BUCKET_NAME }} s3://${{ env.S3_BUCKET_NAME }} --recursive \
+            --metadata-directive REPLACE \
+            --exclude "*" \
+            --include "*.html" \
+            --content-type "text/html"
+
+      - name: 🔄 Invalidate CloudFront cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths "/*"
 
       - name: 📊 Deployment Summary
         run: |
           echo "## 🌐 Frontend Deployment Complete!" >> $GITHUB_STEP_SUMMARY
-          echo "- **Production URL**: ${{ steps.deploy.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **S3 Bucket**: ${{ env.S3_BUCKET_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **CloudFront Distribution**: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Mobile Optimized**: ✅ Responsive design deployed" >> $GITHUB_STEP_SUMMARY
-          echo "- **Performance**: ✅ Next.js optimizations active" >> $GITHUB_STEP_SUMMARY
-          echo "- **CDN**: ✅ Global edge distribution" >> $GITHUB_STEP_SUMMARY
+          echo "- **Performance**: ✅ Next.js optimizations + CloudFront CDN" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ✅ Deployed Successfully" >> $GITHUB_STEP_SUMMARY
