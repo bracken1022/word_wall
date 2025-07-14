@@ -11,15 +11,24 @@
     "refresh": "pulumi refresh",
     "stack:init": "pulumi stack init",
     "stack:select": "pulumi stack select",
-    "config:set": "pulumi config set"
+    "config:set": "pulumi config set",
+    "infra:preview": "./deployment/deploy-infrastructure.sh --preview",
+    "infra:deploy": "./deployment/deploy-infrastructure.sh",
+    "backend:deploy": "./deployment/deploy-backend.sh",
+    "backend:build-deploy": "./deployment/deploy-backend.sh --build --push",
+    "frontend:deploy": "./deployment/deploy-frontend.sh",
+    "deploy:all": "npm run infra:deploy && npm run backend:build-deploy && npm run frontend:deploy",
+    "logs": "aws logs tail /ecs/words-wall-backend --follow",
+    "status": "aws ecs describe-services --cluster words-wall-production-cluster --services words-wall-backend-service --query 'services[0].deployments[0]'"
   },
   "dependencies": {
     "@pulumi/aws": "^6.0.0",
     "@pulumi/pulumi": "^3.0.0"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
-    "typescript": "^5.0.0"
+    "@types/node": "^20.19.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
   },
   "keywords": [
     "pulumi",
