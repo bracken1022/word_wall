@@ -1,4 +1,4 @@
-name: 🌐 Deploy Frontend to S3 + CloudFront
+name: Deploy Frontend
 
 on:
   push:
@@ -11,106 +11,119 @@ on:
     paths:
       - 'frontend/**'
 
-permissions:
-  contents: read
-  id-token: write
-
 env:
   AWS_REGION: ap-southeast-1
-  S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
-  CLOUDFRONT_DISTRIBUTION_ID: ${{ secrets.CLOUDFRONT_DISTRIBUTION_ID }}
+  NODE_VERSION: '18'
 
 jobs:
-  test:
-    name: 🧪 Test Frontend
+  deploy:
+    name: Deploy Frontend to S3 and CloudFront
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./frontend
+    environment: production
 
     steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout
+      uses: actions/checkout@v4
 
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: frontend/yarn.lock
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+        cache-dependency-path: frontend/package-lock.json
 
-      - name: 📥 Install dependencies
-        run: yarn install --frozen-lockfile
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
 
-      - name: 🔍 Lint code
-        run: yarn lint || echo "Linting completed with warnings"
+    - name: Get infrastructure outputs
+      id: infra-outputs
+      run: |
+        # Get infrastructure outputs from Pulumi
+        cd infrastructure
+        
+        # Install Pulumi CLI
+        curl -fsSL https://get.pulumi.com | sh
+        export PATH=$PATH:$HOME/.pulumi/bin
+        
+        # Get outputs
+        BUCKET_NAME=$(pulumi stack output frontendBucketName 2>/dev/null || echo "")
+        CLOUDFRONT_ID=$(pulumi stack output cloudfrontDistributionId 2>/dev/null || echo "")
+        ALB_DNS=$(pulumi stack output albDnsName 2>/dev/null || echo "")
+        
+        echo "bucket-name=$BUCKET_NAME" >> $GITHUB_OUTPUT
+        echo "cloudfront-id=$CLOUDFRONT_ID" >> $GITHUB_OUTPUT
+        echo "alb-dns=$ALB_DNS" >> $GITHUB_OUTPUT
+        
+        echo "📋 Infrastructure outputs:"
+        echo "S3 Bucket: $BUCKET_NAME"
+        echo "CloudFront Distribution: $CLOUDFRONT_ID"
+        echo "ALB DNS: $ALB_DNS"
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
 
-      - name: 🧪 Run tests
-        run: yarn test || echo "Tests completed"
+    - name: Install frontend dependencies
+      run: |
+        cd frontend
+        npm ci
 
-      - name: 🏗️ Build application
-        run: yarn build
-        env:
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
+    - name: Build frontend
+      env:
+        NEXT_PUBLIC_API_BASE_URL: http://${{ steps.infra-outputs.outputs.alb-dns }}
+      run: |
+        cd frontend
+        echo "🔨 Building frontend with API endpoint: $NEXT_PUBLIC_API_BASE_URL"
+        npm run build
 
-  deploy-production:
-    name: 🚀 Deploy to S3 + CloudFront
-    runs-on: ubuntu-latest
-    needs: test
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    defaults:
-      run:
-        working-directory: ./frontend
+    - name: Deploy to S3
+      run: |
+        cd frontend
+        BUCKET_NAME="${{ steps.infra-outputs.outputs.bucket-name }}"
+        
+        if [[ -z "$BUCKET_NAME" ]]; then
+          echo "❌ S3 bucket name not found. Make sure infrastructure is deployed first."
+          exit 1
+        fi
+        
+        echo "📤 Uploading to S3 bucket: $BUCKET_NAME"
+        aws s3 sync out/ "s3://$BUCKET_NAME" --delete --quiet
+        
+        echo "✅ Frontend uploaded to S3"
 
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'yarn'
-          cache-dependency-path: frontend/yarn.lock
-
-      - name: 📥 Install dependencies
-        run: yarn install --frozen-lockfile
-
-      - name: 🏗️ Build application
-        run: yarn build
-        env:
-          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
-
-      - name: 🔧 Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: 📤 Deploy to S3
-        run: |
-          # Upload built files to S3
-          aws s3 sync out/ s3://${{ env.S3_BUCKET_NAME }} --delete
+    - name: Invalidate CloudFront cache
+      run: |
+        CLOUDFRONT_ID="${{ steps.infra-outputs.outputs.cloudfront-id }}"
+        
+        if [[ -n "$CLOUDFRONT_ID" ]]; then
+          echo "🔄 Invalidating CloudFront cache: $CLOUDFRONT_ID"
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "$CLOUDFRONT_ID" \
+            --paths "/*" \
+            --query 'Invalidation.Id' \
+            --output text)
           
-          # Set correct content types
-          aws s3 cp s3://${{ env.S3_BUCKET_NAME }} s3://${{ env.S3_BUCKET_NAME }} --recursive \
-            --metadata-directive REPLACE \
-            --exclude "*" \
-            --include "*.html" \
-            --content-type "text/html"
+          echo "CloudFront invalidation created: $INVALIDATION_ID"
+          echo "✅ Frontend deployment completed!"
+        else
+          echo "⚠️ No CloudFront distribution found, skipping cache invalidation"
+        fi
 
-      - name: 🔄 Invalidate CloudFront cache
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
-            --paths "/*"
-
-      - name: 📊 Deployment Summary
-        run: |
-          echo "## 🌐 Frontend Deployment Complete!" >> $GITHUB_STEP_SUMMARY
-          echo "- **S3 Bucket**: ${{ env.S3_BUCKET_NAME }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **CloudFront Distribution**: ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Mobile Optimized**: ✅ Responsive design deployed" >> $GITHUB_STEP_SUMMARY
-          echo "- **Performance**: ✅ Next.js optimizations + CloudFront CDN" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ✅ Deployed Successfully" >> $GITHUB_STEP_SUMMARY
+    - name: Show deployment summary
+      run: |
+        cd infrastructure
+        
+        # Get URLs from Pulumi outputs
+        CLOUDFRONT_URL=$(pulumi stack output cloudfrontUrl 2>/dev/null || echo "")
+        S3_WEBSITE_URL=$(pulumi stack output frontendBucketWebsiteUrl 2>/dev/null || echo "")
+        
+        echo ""
+        echo "🎉 Frontend deployment completed!"
+        echo "=================================="
+        echo "CloudFront URL: $CLOUDFRONT_URL"
+        echo "S3 Website URL: $S3_WEBSITE_URL"
+        echo "API Endpoint: http://${{ steps.infra-outputs.outputs.alb-dns }}"
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}

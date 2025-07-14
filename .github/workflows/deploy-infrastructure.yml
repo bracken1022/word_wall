@@ -1,0 +1,132 @@
+name: Deploy Infrastructure
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+      - '!infrastructure/task-definitions/**'
+      - '!infrastructure/deployment/deploy-backend.sh'
+      - '.github/workflows/deploy-infrastructure.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'infrastructure/**'
+      - '!infrastructure/task-definitions/**'
+      - '!infrastructure/deployment/deploy-backend.sh'
+
+env:
+  AWS_REGION: ap-southeast-1
+  PULUMI_STACK: production
+
+jobs:
+  preview:
+    name: Preview Infrastructure Changes
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: infrastructure/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd infrastructure
+        npm ci
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Setup Pulumi
+      uses: pulumi/actions@v5
+      with:
+        command: preview
+        stack-name: ${{ env.PULUMI_STACK }}
+        work-dir: infrastructure
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+  deploy:
+    name: Deploy Infrastructure
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: infrastructure/package-lock.json
+
+    - name: Install dependencies
+      run: |
+        cd infrastructure
+        npm ci
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Deploy with Pulumi
+      uses: pulumi/actions@v5
+      with:
+        command: up
+        stack-name: ${{ env.PULUMI_STACK }}
+        work-dir: infrastructure
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+    - name: Export infrastructure outputs
+      run: |
+        cd infrastructure
+        echo "🏗️ Infrastructure deployment completed!"
+        echo ""
+        echo "📋 Infrastructure Outputs:"
+        pulumi stack output --json | jq '.'
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
+
+    - name: Update task definition ARNs
+      run: |
+        echo "🔧 Checking if task definition needs ARN updates..."
+        cd infrastructure
+        
+        # Get current infrastructure outputs
+        EXECUTION_ROLE_ARN=$(pulumi stack output executionRoleArn 2>/dev/null || echo "")
+        TASK_ROLE_ARN=$(pulumi stack output taskRoleArn 2>/dev/null || echo "")
+        JWT_SECRET_ARN=$(pulumi stack output jwtSecretArn 2>/dev/null || echo "")
+        DATABASE_URL_SECRET_ARN=$(pulumi stack output databaseUrlSecretArn 2>/dev/null || echo "")
+        
+        if [[ -n "$EXECUTION_ROLE_ARN" && -n "$TASK_ROLE_ARN" ]]; then
+          echo "📝 ARNs found, checking if task definition needs updates..."
+          echo "Execution Role ARN: $EXECUTION_ROLE_ARN"
+          echo "Task Role ARN: $TASK_ROLE_ARN"
+          echo "JWT Secret ARN: $JWT_SECRET_ARN"
+          echo "Database URL Secret ARN: $DATABASE_URL_SECRET_ARN"
+          
+          # This could trigger a follow-up deployment if ARNs changed
+          # For now, just log them for manual update if needed
+        else
+          echo "⚠️ Some ARNs not found in Pulumi outputs. Manual task definition update may be needed."
+        fi
+      env:
+        PULUMI_ACCESS_TOKEN: ${{ secrets.PULUMI_ACCESS_TOKEN }}
