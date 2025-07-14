@@ -1,0 +1,3 @@
+name: words-wall-infrastructure
+runtime: nodejs
+description: Infrastructure as Code for Words Wall application using Pulumi

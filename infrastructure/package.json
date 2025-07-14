@@ -1,0 +1,32 @@
+{
+  "name": "words-wall-infrastructure",
+  "version": "1.0.0",
+  "description": "Pulumi infrastructure for Words Wall application",
+  "main": "index.ts",
+  "scripts": {
+    "build": "tsc",
+    "preview": "pulumi preview",
+    "up": "pulumi up",
+    "destroy": "pulumi destroy",
+    "refresh": "pulumi refresh",
+    "stack:init": "pulumi stack init",
+    "stack:select": "pulumi stack select",
+    "config:set": "pulumi config set"
+  },
+  "dependencies": {
+    "@pulumi/aws": "^6.0.0",
+    "@pulumi/pulumi": "^3.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0"
+  },
+  "keywords": [
+    "pulumi",
+    "aws",
+    "infrastructure",
+    "iac"
+  ],
+  "author": "",
+  "license": "MIT"
+}

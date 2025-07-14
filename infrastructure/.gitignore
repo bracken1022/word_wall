@@ -1,0 +1,30 @@
+# Pulumi
+.pulumi/
+Pulumi.*.yaml
+
+# Dependencies
+node_modules/
+yarn.lock
+package-lock.json
+
+# Build output
+bin/
+dist/
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
