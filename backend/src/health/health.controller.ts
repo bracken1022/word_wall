@@ -10,7 +10,12 @@ export class HealthController {
       service: 'words-wall-backend',
       uptime: process.uptime(),
       memory: process.memoryUsage(),
-      environment: process.env.NODE_ENV || 'development'
+      environment: process.env.NODE_ENV || 'development',
+      features: {
+        ollama: 'enabled',
+        ai_model: 'qwen3:1.7b',
+        local_ai: true
+      }
     };
   }
 
