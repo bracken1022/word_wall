@@ -16,15 +16,21 @@ COPY . .
 # Build the application
 RUN yarn build
 
-# Production stage
-FROM node:20-alpine AS production
+# Production stage - Switch to Ubuntu for better Ollama compatibility
+FROM node:20-slim AS production
 
-# Install dumb-init and curl for proper signal handling and health checks
-RUN apk add --no-cache dumb-init curl
+# Install dependencies for Ollama and NestJS
+RUN apt-get update && apt-get install -y \
+    curl \
+    bash \
+    procps \
+    net-tools \
+    dumb-init \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create app user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nestjs -u 1001
+# Create app user for security (Ubuntu syntax)
+RUN groupadd -g 1001 nodejs
+RUN useradd -u 1001 -g nodejs -s /bin/bash -m nestjs
 
 # Set working directory
 WORKDIR /app
@@ -38,12 +44,17 @@ RUN yarn install --frozen-lockfile --production && yarn cache clean
 # Copy built application from builder stage
 COPY --from=builder --chown=nestjs:nodejs /app/dist ./dist
 
-# Copy additional files if needed (commenting out for now)
-# COPY --chown=nestjs:nodejs QWEN_SETUP.md ./
+# Copy startup script
+COPY --chown=nestjs:nodejs start.sh ./
+RUN chmod +x start.sh
+
+# Install Ollama
+RUN curl -fsSL https://ollama.com/install.sh | sh
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/uploads && chown nestjs:nodejs /app/uploads
 RUN mkdir -p /app/logs && chown nestjs:nodejs /app/logs
+RUN mkdir -p /app/.ollama && chown nestjs:nodejs /app/.ollama
 
 # Switch to non-root user
 USER nestjs
@@ -58,5 +69,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Use dumb-init to handle signals properly
 ENTRYPOINT ["dumb-init", "--"]
 
-# Start the application
-CMD ["node", "dist/main.js"]
+# Start the application with Ollama
+CMD ["./start.sh"]
