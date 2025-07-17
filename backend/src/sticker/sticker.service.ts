@@ -57,8 +57,18 @@ export class StickerService {
     // If useAI is true or no meaning is provided, use shared word system
     if (createStickerDto.useAI || !createStickerDto.meaning) {
       try {
-        // Get or create shared word with AI content
-        wordEntity = await this.wordService.createOrGetWord(createStickerDto.word);
+        // Use immediate processing by default (unless explicitly set to false)
+        const useImmediate = createStickerDto.immediate !== false;
+        
+        if (useImmediate) {
+          // Get or create shared word with immediate AI content
+          wordEntity = await this.wordService.createOrGetWordImmediate(createStickerDto.word);
+          console.log(`🚀 Using immediate processing for word: "${createStickerDto.word}"`);
+        } else {
+          // Use full processing (legacy behavior)
+          wordEntity = await this.wordService.createOrGetWord(createStickerDto.word);
+          console.log(`🐌 Using full processing for word: "${createStickerDto.word}"`);
+        }
         
         // Use shared word data
         stickerData = {
@@ -77,8 +87,8 @@ export class StickerService {
     // Get or create appropriate label for this user
     const label = await this.labelService.getOrCreateLabelForUser(userId);
 
-    // Remove useAI from the data before saving
-    const { useAI, ...dataToSave } = stickerData;
+    // Remove useAI and immediate from the data before saving
+    const { useAI, immediate, ...dataToSave } = stickerData;
     const sticker = this.stickerRepository.create({
       ...dataToSave,
       userId,

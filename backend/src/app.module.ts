@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { BullModule } from '@nestjs/bull';
 import { StickerModule } from './sticker/sticker.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -8,6 +9,7 @@ import { WordModule } from './word/word.module';
 import { LabelModule } from './label/label.module';
 import { AdminModule } from './admin/admin.module';
 import { HealthModule } from './health/health.module';
+import { QueueModule } from './queue/queue.module';
 import { Sticker } from './sticker/sticker.entity';
 import { User } from './user/user.entity';
 import { Word } from './word/word.entity';
@@ -63,6 +65,18 @@ import { Label } from './label/label.entity';
       },
       inject: [ConfigService],
     }),
+    BullModule.forRootAsync({
+      imports: [ConfigModule],
+      useFactory: (configService: ConfigService) => ({
+        redis: {
+          host: configService.get('REDIS_HOST') || 'localhost',
+          port: configService.get('REDIS_PORT') || 6379,
+          // For production, you might want to use AWS ElastiCache
+          // password: configService.get('REDIS_PASSWORD'),
+        },
+      }),
+      inject: [ConfigService],
+    }),
     StickerModule,
     AuthModule,
     UserModule,
@@ -70,6 +84,7 @@ import { Label } from './label/label.entity';
     LabelModule,
     AdminModule,
     HealthModule,
+    QueueModule,
   ],
 })
 export class AppModule {}

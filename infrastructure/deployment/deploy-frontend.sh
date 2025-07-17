@@ -21,6 +21,8 @@ echo "================================="
 BUCKET_NAME=$(get_infra_output "frontendBucketName")
 CLOUDFRONT_ID=$(get_infra_output "cloudfrontDistributionId")
 ALB_DNS=$(get_infra_output "albDnsName")
+CUSTOM_DOMAIN=$(get_infra_output "customDomainName")
+API_DOMAIN=$(get_infra_output "apiDomainName")
 
 if [[ -z "$BUCKET_NAME" ]]; then
     echo "❌ Could not get S3 bucket name from Pulumi outputs"
@@ -30,15 +32,23 @@ fi
 
 echo "S3 Bucket: $BUCKET_NAME"
 echo "CloudFront Distribution: $CLOUDFRONT_ID"
-echo "API Endpoint: http://$ALB_DNS"
+echo "ALB DNS: $ALB_DNS"
+echo "Custom Domain: ${CUSTOM_DOMAIN:-"Not configured"}"
+echo "API Domain: ${API_DOMAIN:-"Not configured"}"
 echo ""
 
 # Build frontend
 echo "🔨 Building frontend..."
 cd "$PROJECT_ROOT/frontend"
 
-# Set API endpoint for build
-export NEXT_PUBLIC_API_BASE_URL="http://$ALB_DNS"
+# Determine API endpoint
+if [[ -n "$API_DOMAIN" ]]; then
+    export NEXT_PUBLIC_API_BASE_URL="https://$API_DOMAIN"
+    echo "🔗 Using custom API domain: $NEXT_PUBLIC_API_BASE_URL"
+else
+    export NEXT_PUBLIC_API_BASE_URL="http://$ALB_DNS"
+    echo "🔗 Using ALB endpoint: $NEXT_PUBLIC_API_BASE_URL"
+fi
 
 # Install dependencies and build
 npm install
@@ -68,6 +78,15 @@ else
 fi
 
 echo ""
+echo ""
 echo "🎉 Frontend deployment completed!"
-echo "Frontend URL: $(get_infra_output "cloudfrontUrl")"
+echo "=========================================="
+
+if [[ -n "$CUSTOM_DOMAIN" ]]; then
+    echo "🌐 Frontend URL: https://$CUSTOM_DOMAIN"
+    echo "🔗 API Endpoint: https://$API_DOMAIN"
+else
+    echo "Frontend URL: $(get_infra_output "cloudfrontUrl")"
+    echo "API Endpoint: $NEXT_PUBLIC_API_BASE_URL"
+fi
 echo "S3 Website URL: $(get_infra_output "frontendBucketWebsiteUrl")"

@@ -9,6 +9,8 @@ import { createS3Frontend } from "./infrastructure/s3-frontend";
 import { createCloudFront } from "./infrastructure/cloudfront";
 import { createECSCluster } from "./infrastructure/ecs-cluster";
 import { createRDS } from "./infrastructure/rds";
+import { createDomainConfiguration } from "./infrastructure/domain";
+import { createDNSRecords } from "./infrastructure/dns-records";
 
 // Get configuration
 const config = new pulumi.Config();
@@ -16,6 +18,9 @@ const awsConfig = new pulumi.Config("aws");
 const region = awsConfig.require("region");
 const environment = config.get("environment") || "production";
 const projectName = "words-wall";
+
+// Domain configuration (optional)
+const domainName = config.get("domainName"); // e.g., "wordswall.example.com"
 
 // Tags for all resources
 export const commonTags = {
@@ -30,50 +35,74 @@ export const resourcePrefix = `${projectName}-${environment}`;
 // 1. VPC and Networking
 const vpcResources = createVpcResources(commonTags);
 
-// 2. Secrets Manager
+// 2. Domain Configuration (optional)
+const domainConfig = domainName ? createDomainConfiguration(
+    resourcePrefix,
+    domainName,
+    commonTags
+) : undefined;
+
+// 3. Secrets Manager
 const secrets = createSecretsManager(resourcePrefix, commonTags);
 
-// 3. Security Groups  
+// 4. Security Groups  
 const securityGroups = createSecurityGroups(
     resourcePrefix,
     vpcResources.vpcId,
     commonTags
 );
 
-// 4. Load Balancer
+// 5. Load Balancer
 const loadBalancer = createLoadBalancer(
     resourcePrefix,
     vpcResources.publicSubnetIds,
     securityGroups.albSecurityGroupId,
-    commonTags
+    commonTags,
+    domainConfig?.certificateArn
 );
 
-// 5. S3 Frontend
+// 6. S3 Frontend
 const s3Frontend = createS3Frontend(
     resourcePrefix,
     region,
     commonTags
 );
 
-// 6. CloudFront Distribution
+// 7. CloudFront Distribution
 const cloudfront = createCloudFront(
     resourcePrefix,
     s3Frontend.bucketDomainName,
     loadBalancer.albDnsName,
-    commonTags
+    commonTags,
+    domainConfig?.certificateArn,
+    domainConfig?.domainName
 );
 
-// 7. ECS Cluster (infrastructure only, no services)
+// 8. ECS Cluster (infrastructure only, no services)
 const ecsCluster = createECSCluster(
     resourcePrefix,
     commonTags
 );
 
-// 8. RDS Database
+// 9. DNS Records (if domain configured)
+if (domainConfig) {
+    createDNSRecords(
+        domainConfig.hostedZoneId,
+        domainConfig.domainName,
+        domainConfig.apiDomainName,
+        cloudfront.distributionUrl.apply(url => url.replace("https://", "")),
+        pulumi.output("Z2FDTNDATAQYW2"), // CloudFront hosted zone ID (global)
+        loadBalancer.albDnsName,
+        loadBalancer.albZoneId,
+        commonTags
+    );
+}
+
+// 10. RDS Database
 const rds = createRDS(
     resourcePrefix,
     vpcResources.vpcId,
-    vpcResources.privateSubnetIds,
+    vpcResources.publicSubnetIds, // Use public subnets since default VPC doesn't have private ones
     securityGroups.rdsSecurityGroupId,
     commonTags
 );
@@ -115,11 +144,17 @@ export const rdsDbName = rds.dbName;
 export const jwtSecretArn = secrets.jwtSecretArn;
 export const databaseUrlSecretArn = secrets.databaseUrlSecretArn;
 
+// Domain outputs (if configured)
+export const customDomainName = domainConfig?.domainName;
+export const apiDomainName = domainConfig?.apiDomainName;
+export const certificateArn = domainConfig?.certificateArn;
+export const hostedZoneId = domainConfig?.hostedZoneId;
+
 // Configuration for ECS Task Definitions (used by deployment scripts)
 export const ecsTaskConfig = {
     cluster: ecsCluster.clusterName,
     securityGroups: [securityGroups.ecsSecurityGroupId],
-    subnets: vpcResources.privateSubnetIds,
+    subnets: vpcResources.publicSubnetIds, // Use public subnets since default VPC doesn't have private ones
     targetGroupArn: loadBalancer.targetGroupArn,
     secrets: {
         jwtSecret: secrets.jwtSecretArn,

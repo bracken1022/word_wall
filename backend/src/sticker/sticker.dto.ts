@@ -35,6 +35,10 @@ export class CreateStickerDto {
   @IsBoolean()
   @IsOptional()
   useAI?: boolean;
+
+  @IsBoolean()
+  @IsOptional()
+  immediate?: boolean;
 }
 
 export class UpdateStickerDto {

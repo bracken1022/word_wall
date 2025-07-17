@@ -1,13 +1,82 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import axios from 'axios';
 
 @Injectable()
 export class AIService {
   private ollamaUrl = 'http://localhost:11434';
 
-  constructor(private configService: ConfigService) {
+  constructor(
+    private configService: ConfigService,
+    @InjectQueue('word-processing') private wordProcessingQueue: Queue
+  ) {
     // Only using local Qwen via Ollama - no external API keys needed
+  }
+
+  async generateWordDataImmediate(word: string): Promise<{
+    meaning: string;
+    chineseMeaning: string;
+    usage: string;
+    scenarios: string[];
+  }> {
+    console.log(`🚀 Starting immediate word generation for: "${word}"`);
+    const startTime = Date.now();
+    
+    try {
+      // Get basic meaning first (fastest request)
+      const basicMeaning = await this.makeOllamaRequest(
+        `请分析英语单词 "${word}":
+1. 词性是什么？
+2. 基本中文含义是什么？
+请用中文回答。 请不要返回Thinking过程`,
+        'basicMeaning'
+      );
+
+      const duration = Date.now() - startTime;
+      console.log(`✅ Immediate basic meaning generated for "${word}" in ${duration}ms`);
+
+      return {
+        meaning: `### 🎯 词性与基本含义\n${basicMeaning}`,
+        chineseMeaning: word,
+        usage: `### 🎯 词性与基本含义\n${basicMeaning}`,
+        scenarios: ['basic-meaning', 'processing']
+      };
+    } catch (error: any) {
+      console.error(`❌ Immediate generation failed for "${word}":`, error?.message || 'Unknown error');
+      
+      // Return fallback for immediate response
+      const fallback = this.getFallbackForSection('basicMeaning');
+      return {
+        meaning: `### 🎯 词性与基本含义\n${fallback}`,
+        chineseMeaning: word,
+        usage: `### 🎯 词性与基本含义\n${fallback}`,
+        scenarios: ['basic-meaning', 'fallback']
+      };
+    }
+  }
+
+  async queueWordProcessing(wordId: number, word: string): Promise<void> {
+    console.log(`📋 Queueing enhanced processing for word: "${word}" (ID: ${wordId})`);
+    
+    try {
+      await this.wordProcessingQueue.add('enhance-word-details', {
+        wordId,
+        word
+      }, {
+        delay: 1000, // Small delay to ensure word is saved to database
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+      });
+      
+      console.log(`✅ Successfully queued word processing for: "${word}"`);
+    } catch (error: any) {
+      console.error(`❌ Failed to queue word processing for "${word}":`, error?.message || 'Unknown error');
+    }
   }
 
   async generateWordDataLocal(word: string): Promise<{
@@ -118,7 +187,7 @@ ${collocations}
     }
   }
 
-  private async makeOllamaRequest(prompt: string, section: string): Promise<string> {
+  async makeOllamaRequest(prompt: string, section: string): Promise<string> {
     try {
       console.log(`🔄 Making request for section: ${section}`);
       console.log(`📝 Prompt for ${section}:`, prompt);
@@ -174,7 +243,7 @@ ${collocations}
     }
   }
 
-  private getFallbackForSection(section: string): string {
+  getFallbackForSection(section: string): string {
     switch (section) {
       case 'basicMeaning':
         return '词性: 待确认\n基本含义: 请查阅词典获取准确含义';

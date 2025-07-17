@@ -11,7 +11,9 @@ export function createCloudFront(
     resourcePrefix: string,
     s3BucketDomainName: pulumi.Output<string>,
     albDnsName: pulumi.Output<string>,
-    tags: Record<string, string>
+    tags: Record<string, string>,
+    certificateArn?: pulumi.Output<string>,
+    domainName?: string
 ): CloudFront {
     const cloudfrontDistribution = new aws.cloudfront.Distribution("frontend-cdn", {
         origins: [
@@ -134,9 +136,14 @@ export function createCloudFront(
                 restrictionType: "none",
             },
         },
-        viewerCertificate: {
+        viewerCertificate: certificateArn ? {
+            acmCertificateArn: certificateArn,
+            sslSupportMethod: "sni-only",
+            minimumProtocolVersion: "TLSv1.2_2021",
+        } : {
             cloudfrontDefaultCertificate: true,
         },
+        aliases: domainName ? [domainName] : undefined,
         priceClass: "PriceClass_100",
         tags,
     });

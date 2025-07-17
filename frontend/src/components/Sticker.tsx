@@ -16,9 +16,17 @@ interface StickerProps {
   onUpdate: (id: number, x: number, y: number) => void;
   onDelete: (id: number) => void;
   onCardClick: (sticker: StickerProps) => void;
+  wordEntity?: {
+    id: number;
+    isProcessing?: boolean;
+    processingStatus?: string;
+    scenarios?: string[];
+    meaning?: string;
+    usage?: string;
+  };
 }
 
-export default function Sticker({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, onUpdate, onDelete, onCardClick }: StickerProps) {
+export default function Sticker({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, onUpdate, onDelete, onCardClick, wordEntity }: StickerProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const clickTimeout = useRef<NodeJS.Timeout | null>(null);
 
@@ -57,13 +65,39 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
         >
           <div className="text-center px-2 sm:px-3">
             <div className="text-sm sm:text-lg font-bold tracking-tight leading-tight drop-shadow-lg">{word}</div>
-            <div className="text-xs opacity-80 mt-1 font-light hidden sm:block">click for details • double-tap to flip</div>
-            <div className="text-xs opacity-80 mt-1 font-light sm:hidden">tap for details</div>
+            {wordEntity?.isProcessing ? (
+              <div className="text-xs opacity-90 mt-1 font-light">
+                <div className="flex items-center justify-center gap-1">
+                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                  <span className="text-yellow-200">
+                    {(() => {
+                      const scenarios = wordEntity.scenarios || [];
+                      const completedSections = scenarios.filter((s: string) => 
+                        ['detailedMeaning', 'usageExamples', 'synonyms', 'collocations'].includes(s)
+                      ).length;
+                      return completedSections > 0 ? `Processing... ${completedSections}/4` : 'Processing...';
+                    })()}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="text-xs opacity-80 mt-1 font-light hidden sm:block">click for details • double-tap to flip</div>
+                <div className="text-xs opacity-80 mt-1 font-light sm:hidden">tap for details</div>
+              </>
+            )}
           </div>
           
-          {/* Glassmorphism accent */}
-          <div className="absolute top-3 right-3 w-2 h-2 bg-white/40 rounded-full shadow-sm"></div>
-          <div className="absolute bottom-3 left-3 w-1 h-1 bg-white/30 rounded-full"></div>
+          {/* Processing indicator */}
+          {wordEntity?.isProcessing ? (
+            <div className="absolute top-2 right-2 w-3 h-3 bg-yellow-400 rounded-full animate-pulse shadow-lg border border-yellow-300"></div>
+          ) : (
+            <>
+              {/* Glassmorphism accent */}
+              <div className="absolute top-3 right-3 w-2 h-2 bg-white/40 rounded-full shadow-sm"></div>
+              <div className="absolute bottom-3 left-3 w-1 h-1 bg-white/30 rounded-full"></div>
+            </>
+          )}
         </div>
         
         {/* Glassmorphism Back of sticker */}
@@ -81,6 +115,35 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
                 ×
               </button>
             </div>
+            
+            {/* Processing progress indicators */}
+            {wordEntity?.isProcessing && (
+              <div className="mb-2">
+                <div className="flex gap-1 justify-center">
+                  {[
+                    { key: 'detailedMeaning', icon: '🌟', label: 'Details' },
+                    { key: 'usageExamples', icon: '✨', label: 'Examples' },
+                    { key: 'synonyms', icon: '🔄', label: 'Synonyms' },
+                    { key: 'collocations', icon: '🎪', label: 'Phrases' }
+                  ].map((section, index) => {
+                    const isCompleted = (wordEntity.scenarios || []).includes(section.key);
+                    return (
+                      <div 
+                        key={section.key}
+                        className={`flex flex-col items-center gap-0.5 ${isCompleted ? 'opacity-100' : 'opacity-40'}`}
+                      >
+                        <div className={`w-3 h-3 rounded-full flex items-center justify-center text-xs ${
+                          isCompleted ? 'bg-green-400 text-white' : 'bg-gray-500 text-gray-300'
+                        }`}>
+                          {isCompleted ? '✓' : index + 1}
+                        </div>
+                        <div className="text-xs text-white opacity-80">{section.icon}</div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
             
             {/* DeepSeek Preview - Show condensed sections from new structure */}
             {usage && (() => {

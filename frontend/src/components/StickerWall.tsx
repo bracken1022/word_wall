@@ -19,6 +19,14 @@ interface StickerData {
   color: string;
   x: number;
   y: number;
+  wordEntity?: {
+    id: number;
+    isProcessing?: boolean;
+    processingStatus?: string;
+    meaning?: string;
+    usage?: string;
+    scenarios?: string[];
+  };
 }
 
 export default function StickerWall() {
@@ -37,7 +45,9 @@ export default function StickerWall() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedCard, setSelectedCard] = useState<StickerData | null>(null);
   const [showCardModal, setShowCardModal] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [selectedLabelId, setSelectedLabelId] = useState<number | null>(null);
+  const [processingStickers, setProcessingStickers] = useState<Set<number>>(new Set());
 
   const colors = [
     '#f59e0b', '#ef4444', '#10b981', '#3b82f6', 
@@ -70,12 +80,88 @@ export default function StickerWall() {
       
       const data = await response.json();
       // Ensure data is an array
-      setStickers(Array.isArray(data) ? data : []);
+      const stickerData = Array.isArray(data) ? data : [];
+      setStickers(stickerData);
+      
+      // Check for processing stickers and start polling if needed
+      checkForProcessingStickers(stickerData);
     } catch (error) {
       console.error('Failed to fetch stickers:', error);
       setStickers([]); // Set empty array on error
     }
   }, [token, selectedLabelId, logout]);
+
+  const checkForProcessingStickers = useCallback((stickerData: StickerData[]) => {
+    const currentProcessing = new Set<number>();
+    
+    stickerData.forEach(sticker => {
+      // Check if the sticker has a word that is being processed
+      if (sticker.wordEntity?.isProcessing) {
+        currentProcessing.add(sticker.wordEntity.id);
+        console.log(`🔄 Detected processing word: ${sticker.word} (Word ID: ${sticker.wordEntity.id})`);
+      }
+    });
+    
+    // Update processing stickers state
+    setProcessingStickers(prev => {
+      const hasChanges = prev.size !== currentProcessing.size || 
+        Array.from(prev).some(id => !currentProcessing.has(id)) ||
+        Array.from(currentProcessing).some(id => !prev.has(id));
+      
+      if (hasChanges) {
+        console.log(`📊 Processing stickers updated: ${Array.from(currentProcessing).length} processing`);
+        return currentProcessing;
+      }
+      return prev;
+    });
+  }, []);
+
+  const pollWordUpdates = useCallback(async (wordId: number) => {
+    if (!token) return;
+    
+    try {
+      const response = await fetch(apiUrl(`/words/${wordId}`), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const updatedWord = await response.json();
+        console.log(`📝 Polled word ${wordId}, isProcessing: ${updatedWord.isProcessing}`);
+        
+        // Update stickers that use this word
+        setStickers(prev => prev.map(sticker => {
+          if (sticker.wordEntity?.id === wordId) {
+            return {
+              ...sticker,
+              meaning: updatedWord.meaning,
+              usage: updatedWord.usage,
+              wordEntity: {
+                ...sticker.wordEntity,
+                ...updatedWord
+              }
+            };
+          }
+          return sticker;
+        }));
+        
+        // If processing is complete, remove from processing set
+        if (!updatedWord.isProcessing) {
+          console.log(`✅ Word ${wordId} processing completed`);
+          setProcessingStickers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(wordId);
+            return newSet;
+          });
+          
+          // Show completion message
+          setSuccessMessage('Word processing completed!');
+          setTimeout(() => setSuccessMessage(''), 3000);
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error polling word ${wordId}:`, error);
+    }
+  }, [token]);
 
   useEffect(() => {
     if (token) {
@@ -83,20 +169,72 @@ export default function StickerWall() {
     }
   }, [token, fetchStickers, selectedLabelId]);
 
+  // Polling effect for processing stickers
+  useEffect(() => {
+    if (processingStickers.size === 0) return;
+    
+    console.log(`🔄 Starting polling for ${processingStickers.size} processing words:`, Array.from(processingStickers));
+    
+    const pollInterval = setInterval(() => {
+      processingStickers.forEach(wordId => {
+        console.log(`🔍 Polling word ${wordId} for updates...`);
+        pollWordUpdates(wordId);
+      });
+    }, 5000); // Poll every 5 seconds
+    
+    return () => {
+      console.log('🛑 Stopping polling interval');
+      clearInterval(pollInterval);
+    };
+  }, [processingStickers, pollWordUpdates]);
+
+  // Handle escape key to close modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && showAddForm && !isGenerating) {
+        setShowAddForm(false);
+      }
+    };
+
+    if (showAddForm) {
+      document.addEventListener('keydown', handleEscape);
+      return () => document.removeEventListener('keydown', handleEscape);
+    }
+  }, [showAddForm, isGenerating]);
+
+  // Monitor showAddForm state changes
+  useEffect(() => {
+    console.log('🔄 showAddForm state changed to:', showAddForm);
+    if (!showAddForm) {
+      console.log('✅ Modal should now be hidden');
+    }
+  }, [showAddForm]);
+
+  // Add a debugging function that can be called from browser console
+  useEffect(() => {
+    // Make the function available globally for debugging
+    (window as unknown as { forceCloseModal: () => void }).forceCloseModal = () => {
+      console.log('🔧 Force closing modal from debug function');
+      setShowAddForm(false);
+    };
+  }, []);
+
   const addSticker = async () => {
     if (!token) return;
     
-    console.log('addSticker called with:', newSticker);
+    console.log('🚀 addSticker called with:', newSticker);
     if (!newSticker.word) {
-      console.log('No word provided');
+      console.log('❌ No word provided');
       return;
     }
     if (!newSticker.useAI && !newSticker.meaning) {
-      console.log('No AI and no meaning provided');
+      console.log('❌ No AI and no meaning provided');
       return;
     }
 
     setIsGenerating(true);
+    console.log('⏳ Starting sticker creation request...');
+    
     try {
       const response = await fetch(apiUrl('/stickers'), {
         method: 'POST',
@@ -111,15 +249,49 @@ export default function StickerWall() {
         }),
       });
 
+      console.log(`📡 Response received - Status: ${response.status}, OK: ${response.ok}`);
+
       if (response.ok) {
-        await fetchStickers();
-        setNewSticker({ word: '', meaning: '', usage: '', color: '#f59e0b', useAI: true });
+        console.log('✅ Response OK - processing success...');
+        
+        // Parse response to confirm success
+        const responseData = await response.json();
+        console.log('📄 Response data:', responseData);
+        
+        // Close modal immediately on success
+        console.log('🔄 Closing modal immediately...');
         setShowAddForm(false);
+        
+        // Reset form
+        console.log('🔄 Resetting form...');
+        setNewSticker({ word: '', meaning: '', usage: '', color: '#f59e0b', useAI: true });
+        
+        // Refresh stickers list
+        console.log('📋 Refreshing stickers...');
+        await fetchStickers();
+        
+        // Show success message
+        setSuccessMessage('Word added successfully!');
+        setTimeout(() => setSuccessMessage(''), 3000);
+        
+        console.log('✅ Success flow completed');
+      } else {
+        // Handle non-ok responses
+        const errorData = await response.text();
+        console.error('❌ Failed to add sticker - server response:', response.status, errorData);
       }
     } catch (error) {
-      console.error('Failed to add sticker:', error);
+      console.error('❌ Failed to add sticker:', error);
     } finally {
+      console.log('🏁 Setting isGenerating to false');
       setIsGenerating(false);
+      
+      // Force close modal after any response (success or failure)
+      // This ensures the modal always closes even if there's an issue
+      setTimeout(() => {
+        console.log('🔒 Force closing modal in finally block');
+        setShowAddForm(false);
+      }, 500);
     }
   };
 
@@ -288,6 +460,13 @@ export default function StickerWall() {
 
         {/* Content Area */}
         <div className="flex-1 relative overflow-hidden">
+          {/* Success Message */}
+          {successMessage && (
+            <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg animate-fade-in">
+              ✅ {successMessage}
+            </div>
+          )}
+
           {/* Modern Add Button */}
           <div className="absolute top-4 lg:top-6 right-4 lg:right-8 z-50">
             <button
@@ -329,6 +508,7 @@ export default function StickerWall() {
                       onUpdate={() => {}} // No-op function for now
                       onDelete={deleteSticker}
                       onCardClick={handleCardClick}
+                      wordEntity={sticker.wordEntity}
                     />
                   ))}
                 </div>
@@ -358,7 +538,14 @@ export default function StickerWall() {
 
       {/* Glassmorphism Add Form Modal */}
       {showAddForm && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div 
+          className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !isGenerating) {
+              setShowAddForm(false);
+            }
+          }}
+        >
           <div className="bg-white/10 backdrop-blur-md p-4 sm:p-8 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-lg border border-white/20 transform transition-all duration-300 hover:scale-[1.02] max-h-[90vh] overflow-y-auto">
             <div className="flex items-center gap-2 sm:gap-3 mb-6 sm:mb-8">
               <div className="w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-purple-400 to-pink-400 rounded-full shadow-lg"></div>

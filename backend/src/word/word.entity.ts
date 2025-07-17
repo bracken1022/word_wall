@@ -21,6 +21,12 @@ export class Word {
   @Column('text')
   scenarios: string;
 
+  @Column({ default: false })
+  isProcessing: boolean;
+
+  @Column({ default: 'completed' })
+  processingStatus: string;
+
   @CreateDateColumn()
   createdAt: Date;
 

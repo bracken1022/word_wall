@@ -12,7 +12,8 @@ export function createLoadBalancer(
     resourcePrefix: string,
     publicSubnetIds: pulumi.Output<string[]>,
     albSecurityGroupId: pulumi.Output<string>,
-    tags: Record<string, string>
+    tags: Record<string, string>,
+    certificateArn?: pulumi.Output<string>
 ): LoadBalancer {
     // Application Load Balancer
     const applicationLoadBalancer = new aws.lb.LoadBalancer("alb", {
@@ -46,18 +47,44 @@ export function createLoadBalancer(
         tags,
     });
 
-    // ALB HTTP Listener
+    // ALB HTTP Listener (redirect to HTTPS if certificate provided)
     new aws.lb.Listener("alb-http-listener", {
         loadBalancerArn: applicationLoadBalancer.arn,
         port: 80,
         protocol: "HTTP",
-        defaultActions: [
+        defaultActions: certificateArn ? [
+            {
+                type: "redirect",
+                redirect: {
+                    port: "443",
+                    protocol: "HTTPS",
+                    statusCode: "HTTP_301",
+                },
+            },
+        ] : [
             {
                 type: "forward",
                 targetGroupArn: ecsTargetGroup.arn,
             },
         ],
     });
+
+    // ALB HTTPS Listener (if certificate provided)
+    if (certificateArn) {
+        new aws.lb.Listener("alb-https-listener", {
+            loadBalancerArn: applicationLoadBalancer.arn,
+            port: 443,
+            protocol: "HTTPS",
+            sslPolicy: "ELBSecurityPolicy-TLS-1-2-2017-01",
+            certificateArn: certificateArn,
+            defaultActions: [
+                {
+                    type: "forward",
+                    targetGroupArn: ecsTargetGroup.arn,
+                },
+            ],
+        });
+    }
 
     return {
         albArn: applicationLoadBalancer.arn,
