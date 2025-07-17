@@ -101,7 +101,17 @@ export class StickerService {
     // Increment the label's sticker count
     await this.labelService.incrementStickerCount(label.id);
     
-    return savedSticker;
+    // Return the sticker with relations populated
+    const stickerWithRelations = await this.stickerRepository.findOne({
+      where: { id: savedSticker.id },
+      relations: ['user', 'wordEntity', 'label']
+    });
+    
+    if (!stickerWithRelations) {
+      throw new NotFoundException(`Sticker with ID ${savedSticker.id} not found after creation`);
+    }
+    
+    return stickerWithRelations;
   }
 
   async update(id: number, updateStickerDto: UpdateStickerDto, userId?: number): Promise<Sticker> {

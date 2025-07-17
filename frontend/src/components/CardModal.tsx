@@ -15,30 +15,122 @@ interface CardModalProps {
   color: string;
   id: number;
   onDelete: (id: number) => void;
+  wordEntity?: {
+    id: number;
+    isProcessing?: boolean;
+    processingStatus?: string;
+    scenarios?: string[];
+    meaning?: string;
+    usage?: string;
+  };
 }
 
-export default function CardModal({ isOpen, onClose, word, usage, color, id, onDelete }: CardModalProps) {
+export default function CardModal({ isOpen, onClose, word, usage, color, id, onDelete, wordEntity }: CardModalProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(usage || '');
   const [isSaving, setIsSaving] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const [currentWordData, setCurrentWordData] = useState<{
+    id: number;
+    word: string;
+    meaning?: string;
+    usage?: string;
+    isProcessing?: boolean;
+    processingStatus?: string;
+    scenarios?: string[];
+  } | null>(null);
   const { token } = useAuth();
 
-  // Reset flip state when modal opens
+  // Function to fetch latest word data
+  const fetchLatestWordData = async () => {
+    console.log('🔍 fetchLatestWordData called');
+    console.log('📊 token:', !!token);
+    console.log('📊 wordEntity:', wordEntity);
+    console.log('📊 wordEntity?.id:', wordEntity?.id);
+    
+    if (!token || !wordEntity?.id) {
+      console.log('❌ Missing token or wordEntity.id, skipping fetch');
+      return;
+    }
+    
+    console.log(`🔄 Fetching latest word data for ID: ${wordEntity.id}`);
+    setIsRefreshing(true);
+    setRefreshError(null);
+    
+    try {
+      const url = apiUrl(`/words/${wordEntity.id}`);
+      console.log('📡 Making API call to:', url);
+      console.log('📡 Headers:', { 'Authorization': `Bearer ${token?.substring(0, 10)}...` });
+      
+      const response = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      console.log('📡 Response status:', response.status);
+      console.log('📡 Response ok:', response.ok);
+      
+      if (response.ok) {
+        const updatedWord = await response.json();
+        console.log(`✅ Retrieved latest word data for ID: ${wordEntity.id}`);
+        console.log('📊 Updated word data:', updatedWord);
+        
+        setCurrentWordData(updatedWord);
+        setEditContent(updatedWord.usage || updatedWord.meaning || '');
+        
+        return updatedWord;
+      } else {
+        const errorText = await response.text();
+        console.error('❌ API error response:', errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error(`❌ Error fetching word data for ID: ${wordEntity.id}`, error);
+      setRefreshError('Failed to fetch latest word data');
+      
+      // Auto-clear error after 5 seconds
+      setTimeout(() => {
+        setRefreshError(null);
+      }, 5000);
+      
+      throw error;
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
+
+  // Reset flip state when modal opens and fetch latest data
   useEffect(() => {
+    console.log('🔍 CardModal useEffect triggered');
+    console.log('📊 isOpen:', isOpen);
+    console.log('📊 wordEntity:', wordEntity);
+    console.log('📊 wordEntity?.id:', wordEntity?.id);
+    
     if (isOpen) {
       setIsFlipped(false);
       setIsEditing(false);
       setEditContent(usage || '');
+      setRefreshError(null);
+      
+      // Fetch latest word data when modal opens
+      if (wordEntity?.id) {
+        console.log('✅ Calling fetchLatestWordData');
+        fetchLatestWordData();
+      } else {
+        console.log('❌ No wordEntity.id, skipping fetch');
+      }
     }
-  }, [isOpen, usage]);
+  }, [isOpen, usage, wordEntity?.id]);
 
   const handleSave = async () => {
     if (!token) return;
     
     setIsSaving(true);
     try {
-      const response = await fetch(apiUrl(`/words/${id}`), {
+      // Use word entity ID if available, otherwise fall back to sticker ID
+      const wordId = currentWordData?.id || wordEntity?.id || id;
+      const response = await fetch(apiUrl(`/words/${wordId}`), {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -52,8 +144,8 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
 
       if (response.ok) {
         setIsEditing(false);
-        // You might want to call a refresh function here
-        window.location.reload(); // Simple refresh for now
+        // Refresh the word data to show updated content
+        await fetchLatestWordData();
       } else {
         alert('Failed to save changes');
       }
@@ -102,7 +194,26 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
           className={`relative w-full h-full max-w-[95vw] max-h-[95vh] sm:w-[480px] sm:h-[600px] sm:max-w-[90vw] sm:max-h-[90vh] transition-transform duration-700 transform-style-preserve-3d cursor-pointer ${
             isFlipped ? 'rotate-y-180' : ''
           }`}
-          onClick={() => setIsFlipped(!isFlipped)}
+          onClick={async () => {
+            console.log('🔄 Card flip clicked');
+            const newFlippedState = !isFlipped;
+            console.log('📊 newFlippedState:', newFlippedState);
+            console.log('📊 wordEntity:', wordEntity);
+            console.log('📊 wordEntity?.id:', wordEntity?.id);
+            setIsFlipped(newFlippedState);
+            
+            // If flipping to back view, refresh the data
+            if (newFlippedState && wordEntity?.id) {
+              console.log('✅ Conditions met, calling fetchLatestWordData');
+              try {
+                await fetchLatestWordData();
+              } catch {
+                // Error handling is already done in fetchLatestWordData
+              }
+            } else {
+              console.log('❌ Conditions not met for fetching data');
+            }
+          }}
         >
           {/* Front of Card */}
           <div
@@ -129,7 +240,23 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
               {/* Fixed Header */}
               <div className="flex-shrink-0 p-4 sm:p-6 pb-0">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
-                  <div className="font-bold text-white text-xl sm:text-2xl drop-shadow-lg">{word}</div>
+                  <div className="font-bold text-white text-xl sm:text-2xl drop-shadow-lg flex items-center gap-3">
+                    {word}
+                    {isRefreshing && (
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                    {refreshError && (
+                      <div className="w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">!</span>
+                      </div>
+                    )}
+                    {currentWordData?.isProcessing && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-lg border border-yellow-400/30">
+                        <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                        <span className="text-yellow-200 text-xs">Processing...</span>
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-1 sm:gap-2">
                     <button
                       onClick={(e) => {
@@ -167,6 +294,13 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
                   </div>
                 </div>
               </div>
+              
+              {/* Error message display */}
+              {refreshError && (
+                <div className="mx-4 sm:mx-6 mb-4 p-3 bg-red-500/20 border border-red-400/30 rounded-lg">
+                  <div className="text-red-200 text-sm text-center">{refreshError}</div>
+                </div>
+              )}
               
               {/* Scrollable Content */}
               <div className="flex-1 overflow-y-auto px-4 sm:px-6 pb-4 sm:pb-6 scrollbar-thin scrollbar-thumb-white/20 scrollbar-track-transparent relative group">
@@ -227,8 +361,10 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
                   /* Display Mode */
                   <div>
                     {/* Parse and display the new beautiful Qwen sections */}
-                    {usage && (() => {
-                  const content = safeString(usage);
+                    {(() => {
+                      // Use currentWordData if available, otherwise fall back to usage prop
+                      const contentToUse = currentWordData?.usage || currentWordData?.meaning || usage || '';
+                      const content = safeString(contentToUse);
                   
                   // Debug logging for full Qwen response
                   console.log('=== QWEN RESPONSE DEBUG ===');

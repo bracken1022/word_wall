@@ -81,6 +81,8 @@ export default function StickerWall() {
       const data = await response.json();
       // Ensure data is an array
       const stickerData = Array.isArray(data) ? data : [];
+      console.log('🔍 Fetched sticker data:', stickerData);
+      console.log('📊 Sample sticker wordEntity:', stickerData[0]?.wordEntity);
       setStickers(stickerData);
       
       // Check for processing stickers and start polling if needed
@@ -160,6 +162,52 @@ export default function StickerWall() {
       }
     } catch (error) {
       console.error(`❌ Error polling word ${wordId}:`, error);
+    }
+  }, [token]);
+
+  const handleFlipRefresh = useCallback(async (wordId: number) => {
+    if (!token) return;
+    
+    console.log(`🔄 Card flipped - refreshing word data for ID: ${wordId}`);
+    try {
+      const response = await fetch(apiUrl(`/words/${wordId}`), {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (response.ok) {
+        const updatedWord = await response.json();
+        console.log(`✅ Retrieved latest word data for ID: ${wordId}`);
+        
+        // Update stickers that use this word
+        setStickers(prev => prev.map(sticker => {
+          if (sticker.wordEntity?.id === wordId) {
+            return {
+              ...sticker,
+              meaning: updatedWord.meaning,
+              usage: updatedWord.usage,
+              chineseMeaning: updatedWord.chineseMeaning,
+              scenarios: updatedWord.scenarios,
+              wordEntity: {
+                ...sticker.wordEntity,
+                ...updatedWord
+              }
+            };
+          }
+          return sticker;
+        }));
+        
+        // If processing is complete, remove from processing set
+        if (!updatedWord.isProcessing) {
+          setProcessingStickers(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(wordId);
+            return newSet;
+          });
+        }
+      }
+    } catch (error) {
+      console.error(`❌ Error refreshing word data for ID: ${wordId}`, error);
+      throw error; // Re-throw to handle in Sticker component
     }
   }, [token]);
 
@@ -313,6 +361,9 @@ export default function StickerWall() {
   };
 
   const handleCardClick = (sticker: StickerData) => {
+    console.log('🎯 Card clicked:', sticker);
+    console.log('📊 Sticker wordEntity:', sticker.wordEntity);
+    console.log('🔍 Has wordEntity ID:', sticker.wordEntity?.id);
     setSelectedCard(sticker);
     setShowCardModal(true);
   };
@@ -508,6 +559,7 @@ export default function StickerWall() {
                       onUpdate={() => {}} // No-op function for now
                       onDelete={deleteSticker}
                       onCardClick={handleCardClick}
+                      onFlipRefresh={handleFlipRefresh}
                       wordEntity={sticker.wordEntity}
                     />
                   ))}
@@ -671,6 +723,7 @@ export default function StickerWall() {
           color={selectedCard.color}
           id={selectedCard.id}
           onDelete={deleteSticker}
+          wordEntity={selectedCard.wordEntity}
         />
       )}
     </div>

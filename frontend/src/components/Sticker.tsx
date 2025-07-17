@@ -16,6 +16,7 @@ interface StickerProps {
   onUpdate: (id: number, x: number, y: number) => void;
   onDelete: (id: number) => void;
   onCardClick: (sticker: StickerProps) => void;
+  onFlipRefresh?: (wordId: number) => Promise<void>;
   wordEntity?: {
     id: number;
     isProcessing?: boolean;
@@ -26,9 +27,42 @@ interface StickerProps {
   };
 }
 
-export default function Sticker({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, onUpdate, onDelete, onCardClick, wordEntity }: StickerProps) {
+export default function Sticker({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, onUpdate, onDelete, onCardClick, onFlipRefresh, wordEntity }: StickerProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
   const clickTimeout = useRef<NodeJS.Timeout | null>(null);
+
+  const handleFlip = async () => {
+    const newFlippedState = !isFlipped;
+    setIsFlipped(newFlippedState);
+    
+    // Clear any previous error when flipping
+    if (refreshError) {
+      setRefreshError(null);
+    }
+    
+    // If flipping to back view and we have a wordEntity, refresh the data
+    if (newFlippedState && wordEntity?.id && onFlipRefresh) {
+      console.log(`🔄 Refreshing word data for word ID: ${wordEntity.id}`);
+      setIsRefreshing(true);
+      setRefreshError(null);
+      try {
+        await onFlipRefresh(wordEntity.id);
+        console.log(`✅ Successfully refreshed word data for word ID: ${wordEntity.id}`);
+      } catch (error) {
+        console.error(`❌ Failed to refresh word data for word ID: ${wordEntity.id}`, error);
+        setRefreshError('Failed to refresh word data');
+        
+        // Auto-clear error after 3 seconds
+        setTimeout(() => {
+          setRefreshError(null);
+        }, 3000);
+      } finally {
+        setIsRefreshing(false);
+      }
+    }
+  };
 
   return (
     <div
@@ -45,7 +79,7 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
           if (clickTimeout.current) {
             clearTimeout(clickTimeout.current);
             clickTimeout.current = null;
-            setIsFlipped(!isFlipped);
+            handleFlip();
           } else {
             // Single click - wait to see if it's a double click
             clickTimeout.current = setTimeout(() => {
@@ -104,7 +138,17 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
         <div className="absolute inset-0 w-full h-full bg-white/20 backdrop-blur-md rounded-2xl shadow-xl backface-hidden rotate-y-180 p-2 sm:p-3 border border-white/30 overflow-hidden">
           <div className="h-full flex flex-col text-xs">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
-              <div className="font-bold text-white text-xs sm:text-sm drop-shadow-lg">{word}</div>
+              <div className="font-bold text-white text-xs sm:text-sm drop-shadow-lg flex items-center gap-2">
+                {word}
+                {isRefreshing && (
+                  <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                )}
+                {refreshError && (
+                  <div className="w-3 h-3 bg-red-500 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs">!</span>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -115,6 +159,13 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
                 ×
               </button>
             </div>
+            
+            {/* Error message display */}
+            {refreshError && (
+              <div className="mb-2 px-2 py-1 bg-red-500/20 border border-red-400/30 rounded-lg">
+                <div className="text-xs text-red-200 text-center">{refreshError}</div>
+              </div>
+            )}
             
             {/* Processing progress indicators */}
             {wordEntity?.isProcessing && (
