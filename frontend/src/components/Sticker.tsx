@@ -13,6 +13,7 @@ interface StickerProps {
   color: string;
   x: number;
   y: number;
+  wordId?: number;
   onUpdate: (id: number, x: number, y: number) => void;
   onDelete: (id: number) => void;
   onCardClick: (sticker: StickerProps) => void;
@@ -27,7 +28,7 @@ interface StickerProps {
   };
 }
 
-export default function Sticker({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, onUpdate, onDelete, onCardClick, onFlipRefresh, wordEntity }: StickerProps) {
+export default function Sticker({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, wordId, onUpdate, onDelete, onCardClick, onFlipRefresh, wordEntity }: StickerProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
@@ -98,7 +99,7 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
           } else {
             // Single click - wait to see if it's a double click
             clickTimeout.current = setTimeout(() => {
-              onCardClick({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, onUpdate, onDelete, onCardClick });
+              onCardClick({ id, word, meaning, chineseMeaning, usage, scenarios, color, x, y, wordId, onUpdate, onDelete, onCardClick, wordEntity });
               clickTimeout.current = null;
             }, 200);
           }

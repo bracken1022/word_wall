@@ -43,6 +43,14 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
   } | null>(null);
   const { token } = useAuth();
 
+  // Debug what props we're receiving
+  console.log('🎭 CardModal props:', { 
+    isOpen, 
+    word, 
+    id, 
+    wordEntity: wordEntity ? { id: wordEntity.id, isProcessing: wordEntity.isProcessing } : null 
+  });
+
   // Function to fetch latest word data
   const fetchLatestWordData = async () => {
     console.log('🔍 fetchLatestWordData called');
@@ -204,11 +212,16 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
             isFlipped ? 'rotate-y-180' : ''
           }`}
           onClick={async () => {
-            console.log('🔄 Card flip clicked');
+            console.log('🔄 Card flip clicked - DETAILED DEBUG');
+            console.log('📊 Current isFlipped:', isFlipped);
             const newFlippedState = !isFlipped;
-            console.log('📊 newFlippedState:', newFlippedState);
-            console.log('📊 wordEntity:', wordEntity);
+            console.log('📊 newFlippedState (will flip to):', newFlippedState);
+            console.log('📊 wordEntity full object:', JSON.stringify(wordEntity, null, 2));
             console.log('📊 wordEntity?.id:', wordEntity?.id);
+            console.log('📊 Conditions check:');
+            console.log('   - newFlippedState:', newFlippedState);
+            console.log('   - wordEntity?.id exists:', !!wordEntity?.id);
+            console.log('   - Combined condition:', newFlippedState && !!wordEntity?.id);
             setIsFlipped(newFlippedState);
             
             // If flipping to back view, refresh the data
@@ -221,6 +234,7 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
               }
             } else {
               console.log('❌ Conditions not met for fetching data');
+              console.log('   - Reason: newFlippedState =', newFlippedState, ', wordEntity?.id =', wordEntity?.id);
             }
           }}
         >
@@ -387,26 +401,42 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
                   console.log('Full content:', content);
                   console.log('=== END QWEN RESPONSE ===');
                   
+                  // Clean up content by removing duplicate consecutive headers
+                  const cleanedContent = content
+                    .replace(/(###\s*🎯\s*词性与基本含义)\s*\1/gi, '$1')
+                    .replace(/(###\s*🌟\s*详细释义)\s*\1/gi, '$1')
+                    .replace(/(###\s*✨\s*使用场景与例句)\s*\1/gi, '$1')
+                    .replace(/(###\s*🔄\s*近义词对比)\s*\1/gi, '$1')
+                    .replace(/(###\s*🎪\s*常用搭配表达)\s*\1/gi, '$1')
+                    .replace(/(###\s*🎬\s*记忆金句)\s*\1/gi, '$1');
+                  
+                  console.log('🧹 Cleaned content:', cleanedContent.substring(0, 200) + '...');
+                  
                   // Extract sections based on new Qwen format with more flexible matching
-                  const basicInfoMatch = content.match(/###\s*🎯\s*词性与基本含义\s*([\s\S]*?)(?=###|$)/i);
-                  const detailsMatch = content.match(/###\s*🌟\s*详细释义\s*([\s\S]*?)(?=###|$)/i);
+                  const basicInfoMatch = cleanedContent.match(/###\s*🎯\s*词性与基本含义\s*([\s\S]*?)(?=###|$)/i);
+                  const detailsMatch = cleanedContent.match(/###\s*🌟\s*详细释义\s*([\s\S]*?)(?=###|$)/i);
                   
                   // Try multiple patterns for scenarios section
-                  let scenariosMatch = content.match(/###\s*✨\s*使用场景与例句\s*([\s\S]*?)(?=###\s*🔄|###\s*🎪|###\s*🎬|$)/i);
+                  let scenariosMatch = cleanedContent.match(/###\s*✨\s*使用场景与例句\s*([\s\S]*?)(?=###\s*🔄|###\s*🎪|###\s*🎬|$)/i);
                   if (!scenariosMatch) {
-                    scenariosMatch = content.match(/###\s*✨\s*使用场景\s*([\s\S]*?)(?=###\s*🔄|###\s*🎪|###\s*🎬|$)/i);
+                    scenariosMatch = cleanedContent.match(/###\s*✨\s*使用场景\s*([\s\S]*?)(?=###\s*🔄|###\s*🎪|###\s*🎬|$)/i);
                   }
                   if (!scenariosMatch) {
                     // Try to match from first scenario subsection
-                    scenariosMatch = content.match(/####\s*🏢\s*\*\*场景一\*\*\s*([\s\S]*?)(?=###\s*🔄|###\s*🎪|###\s*🎬|$)/i);
+                    scenariosMatch = cleanedContent.match(/####\s*🏢\s*\*\*场景一\*\*\s*([\s\S]*?)(?=###\s*🔄|###\s*🎪|###\s*🎬|$)/i);
                   }
                   
-                  const synonymsMatch = content.match(/###\s*🔄\s*近义词对比\s*([\s\S]*?)(?=###|$)/i);
-                  const collocationsMatch = content.match(/###\s*🎪\s*常用搭配表达\s*([\s\S]*?)(?=###|$)/i);
-                  const memoryMatch = content.match(/###\s*🎬\s*记忆金句\s*([\s\S]*?)(?=---|$)/i);
+                  const synonymsMatch = cleanedContent.match(/###\s*🔄\s*近义词对比\s*([\s\S]*?)(?=###|$)/i);
+                  const collocationsMatch = cleanedContent.match(/###\s*🎪\s*常用搭配表达\s*([\s\S]*?)(?=###|$)/i);
+                  const memoryMatch = cleanedContent.match(/###\s*🎬\s*记忆金句\s*([\s\S]*?)(?=---|$)/i);
                   
                   const basicInfoContent = basicInfoMatch ? basicInfoMatch[1].trim() : '';
                   const detailsContent = detailsMatch ? detailsMatch[1].trim() : '';
+                  
+                  // Debug what we extracted
+                  console.log('🔍 basicInfoMatch found:', !!basicInfoMatch);
+                  console.log('🔍 basicInfoContent length:', basicInfoContent.length);
+                  console.log('🔍 basicInfoContent:', basicInfoContent);
                   const scenariosContent = scenariosMatch ? scenariosMatch[1].trim() : '';
                   const synonymsContent = synonymsMatch ? synonymsMatch[1].trim() : '';
                   

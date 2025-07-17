@@ -19,6 +19,7 @@ interface StickerData {
   color: string;
   x: number;
   y: number;
+  wordId?: number;
   wordEntity?: {
     id: number;
     isProcessing?: boolean;
@@ -83,6 +84,8 @@ export default function StickerWall() {
       const stickerData = Array.isArray(data) ? data : [];
       console.log('🔍 Fetched sticker data:', stickerData);
       console.log('📊 Sample sticker wordEntity:', stickerData[0]?.wordEntity);
+      console.log('📊 Sample sticker wordId:', stickerData[0]?.wordId);
+      console.log('📊 First sticker full object:', JSON.stringify(stickerData[0], null, 2));
       setStickers(stickerData);
       
       // Check for processing stickers and start polling if needed
@@ -360,7 +363,28 @@ export default function StickerWall() {
     console.log('🎯 Card clicked:', sticker);
     console.log('📊 Sticker wordEntity:', sticker.wordEntity);
     console.log('🔍 Has wordEntity ID:', sticker.wordEntity?.id);
-    setSelectedCard(sticker);
+    console.log('📊 Sticker wordId:', sticker.wordId);
+    console.log('📊 Full sticker object:', JSON.stringify(sticker, null, 2));
+    
+    // If wordEntity is null but wordId exists, let's try to create a minimal wordEntity
+    if (!sticker.wordEntity && sticker.wordId) {
+      console.log('⚠️ WordEntity is null but wordId exists, creating minimal wordEntity');
+      const stickerWithWordEntity = {
+        ...sticker,
+        wordEntity: {
+          id: sticker.wordId,
+          isProcessing: false,
+          processingStatus: 'completed',
+          meaning: sticker.meaning,
+          usage: sticker.usage,
+          scenarios: []
+        }
+      };
+      console.log('🔧 Created minimal wordEntity:', stickerWithWordEntity.wordEntity);
+      setSelectedCard(stickerWithWordEntity);
+    } else {
+      setSelectedCard(sticker);
+    }
     setShowCardModal(true);
   };
 
