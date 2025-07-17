@@ -49,9 +49,18 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
     console.log('📊 token:', !!token);
     console.log('📊 wordEntity:', wordEntity);
     console.log('📊 wordEntity?.id:', wordEntity?.id);
+    console.log('📊 sticker id for fallback:', id);
     
-    if (!token || !wordEntity?.id) {
-      console.log('❌ Missing token or wordEntity.id, skipping fetch');
+    if (!token) {
+      console.log('❌ Missing token, skipping fetch');
+      return;
+    }
+    
+    // If no wordEntity.id, we can't fetch word data directly
+    if (!wordEntity?.id) {
+      console.log('❌ No wordEntity.id available, cannot fetch word data');
+      setRefreshError('No word data available to refresh');
+      setTimeout(() => setRefreshError(null), 3000);
       return;
     }
     
@@ -254,6 +263,12 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
                       <div className="flex items-center gap-1 px-2 py-1 bg-yellow-500/20 rounded-lg border border-yellow-400/30">
                         <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                         <span className="text-yellow-200 text-xs">Processing...</span>
+                      </div>
+                    )}
+                    {!wordEntity?.id && (
+                      <div className="flex items-center gap-1 px-2 py-1 bg-gray-500/20 rounded-lg border border-gray-400/30">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        <span className="text-gray-300 text-xs">No dynamic data</span>
                       </div>
                     )}
                   </div>

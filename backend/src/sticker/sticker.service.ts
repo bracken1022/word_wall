@@ -22,10 +22,52 @@ export class StickerService {
   }
 
   async findByUser(userId: number): Promise<Sticker[]> {
-    return this.stickerRepository.find({ 
+    const stickers = await this.stickerRepository.find({ 
       where: { userId },
       relations: ['user', 'wordEntity', 'label']
     });
+    
+    // Fix: Handle stickers with missing wordEntity relations
+    const stickersWithMissingWords = stickers.filter(s => s.wordId && !s.wordEntity);
+    if (stickersWithMissingWords.length > 0) {
+      console.log(`⚠️ Found ${stickersWithMissingWords.length} stickers with missing wordEntity relations, attempting to fix...`);
+      
+      for (const sticker of stickersWithMissingWords) {
+        console.log(`🔧 Fixing sticker ID: ${sticker.id}, wordId: ${sticker.wordId}, word: "${sticker.word}"`);
+        
+        try {
+          // Check if the word exists in the database
+          let word = await this.wordService.findById(sticker.wordId);
+          
+          if (!word) {
+            console.log(`❌ Word ${sticker.wordId} not found, creating new word for "${sticker.word}"`);
+            // Create a new word entry if it doesn't exist
+            word = await this.wordService.create({
+              word: sticker.word,
+              meaning: sticker.meaning || `Basic meaning for ${sticker.word}`,
+              chineseMeaning: sticker.chineseMeaning || '',
+              usage: sticker.usage || `Usage examples for ${sticker.word}`,
+              scenarios: sticker.scenarios ? [sticker.scenarios] : [],
+              isProcessing: false,
+              processingStatus: 'completed'
+            });
+            
+            // Update the sticker to point to the new word
+            await this.stickerRepository.update(sticker.id, { wordId: word.id });
+            console.log(`✅ Created new word ${word.id} and updated sticker ${sticker.id}`);
+          } else {
+            console.log(`✅ Word ${sticker.wordId} exists in database: "${word.word}"`);
+          }
+          
+          // Manually assign the wordEntity to the sticker for this response
+          sticker.wordEntity = word;
+        } catch (error) {
+          console.log(`❌ Error fixing sticker ${sticker.id}:`, error instanceof Error ? error.message : 'Unknown error');
+        }
+      }
+    }
+    
+    return stickers;
   }
 
   async findByLabel(labelId: number, userId: number): Promise<Sticker[]> {
