@@ -18,8 +18,19 @@ export class Word {
   @Column('text')
   usage: string;
 
-  @Column('text')
-  scenarios: string;
+  @Column('text', {
+    transformer: {
+      to: (value: string[]) => JSON.stringify(value || []),
+      from: (value: string) => {
+        try {
+          return JSON.parse(value || '[]');
+        } catch {
+          return [];
+        }
+      }
+    }
+  })
+  scenarios: string[];
 
   @Column({ default: false })
   isProcessing: boolean;

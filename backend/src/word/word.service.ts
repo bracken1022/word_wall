@@ -38,7 +38,7 @@ export class WordService {
       meaning: wordData.meaning,
       chineseMeaning: wordData.chineseMeaning,
       usage: wordData.usage,
-      scenarios: JSON.stringify(wordData.scenarios),
+      scenarios: wordData.scenarios,
       isProcessing: wordData.isProcessing || false,
       processingStatus: wordData.processingStatus || 'completed',
     });
@@ -69,7 +69,7 @@ export class WordService {
       word.usage = updateData.usage;
     }
     if (updateData.scenarios !== undefined) {
-      word.scenarios = JSON.stringify(updateData.scenarios);
+      word.scenarios = updateData.scenarios;
     }
     if (updateData.isProcessing !== undefined) {
       word.isProcessing = updateData.isProcessing;
@@ -104,7 +104,7 @@ export class WordService {
       word.usage = updateData.usage;
     }
     if (updateData.scenarios !== undefined) {
-      word.scenarios = JSON.stringify(updateData.scenarios);
+      word.scenarios = updateData.scenarios;
     }
 
     const updatedWord = await this.wordRepository.save(word);
@@ -202,7 +202,7 @@ export class WordService {
         meaning: aiData.meaning,
         chineseMeaning: aiData.chineseMeaning,
         usage: typeof aiData.usage === 'string' ? aiData.usage : JSON.stringify(aiData.usage),
-        scenarios: JSON.stringify(aiData.scenarios),
+        scenarios: aiData.scenarios,
       });
 
       console.log(`💾 Saving new word "${normalizedWord}" to database...`);

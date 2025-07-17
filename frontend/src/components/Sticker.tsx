@@ -33,6 +33,21 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const clickTimeout = useRef<NodeJS.Timeout | null>(null);
 
+  // Helper function to safely parse scenarios
+  const parseScenarios = (scenariosRaw: string[] | string | undefined): string[] => {
+    if (Array.isArray(scenariosRaw)) {
+      return scenariosRaw;
+    }
+    if (typeof scenariosRaw === 'string') {
+      try {
+        return JSON.parse(scenariosRaw || '[]');
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  };
+
   const handleFlip = async () => {
     const newFlippedState = !isFlipped;
     setIsFlipped(newFlippedState);
@@ -105,7 +120,7 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
                   <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
                   <span className="text-yellow-200">
                     {(() => {
-                      const scenarios = wordEntity.scenarios || [];
+                      const scenarios = parseScenarios(wordEntity.scenarios);
                       const completedSections = scenarios.filter((s: string) => 
                         ['detailedMeaning', 'usageExamples', 'synonyms', 'collocations'].includes(s)
                       ).length;
@@ -177,7 +192,8 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
                     { key: 'synonyms', icon: '🔄', label: 'Synonyms' },
                     { key: 'collocations', icon: '🎪', label: 'Phrases' }
                   ].map((section, index) => {
-                    const isCompleted = (wordEntity.scenarios || []).includes(section.key);
+                    const scenarios = parseScenarios(wordEntity.scenarios);
+                    const isCompleted = scenarios.includes(section.key);
                     return (
                       <div 
                         key={section.key}
