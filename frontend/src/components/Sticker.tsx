@@ -197,8 +197,10 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
             )}
             
             {/* DeepSeek Preview - Show condensed sections from new structure */}
-            {usage && (() => {
-              const content = safeString(usage);
+            {(() => {
+              // Use wordEntity data if available, otherwise fall back to sticker usage
+              const contentToUse = wordEntity?.usage || wordEntity?.meaning || usage || '';
+              const content = safeString(contentToUse);
               
               // Extract first part of each section for preview (actual DeepSeek format)
               const definitionMatch = content.match(/###\s*单词定义[:：]?\s*\n([\s\S]*?)(?=###\s*使用场景|$)/i);

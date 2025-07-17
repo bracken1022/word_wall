@@ -135,8 +135,7 @@ export default function StickerWall() {
           if (sticker.wordEntity?.id === wordId) {
             return {
               ...sticker,
-              meaning: updatedWord.meaning,
-              usage: updatedWord.usage,
+              // Update wordEntity with the latest data
               wordEntity: {
                 ...sticker.wordEntity,
                 ...updatedWord
@@ -183,10 +182,7 @@ export default function StickerWall() {
           if (sticker.wordEntity?.id === wordId) {
             return {
               ...sticker,
-              meaning: updatedWord.meaning,
-              usage: updatedWord.usage,
-              chineseMeaning: updatedWord.chineseMeaning,
-              scenarios: updatedWord.scenarios,
+              // Update wordEntity with the latest data
               wordEntity: {
                 ...sticker.wordEntity,
                 ...updatedWord
@@ -719,7 +715,7 @@ export default function StickerWall() {
           isOpen={showCardModal}
           onClose={closeCardModal}
           word={selectedCard.word}
-          usage={selectedCard.usage}
+          usage={selectedCard.wordEntity?.usage || selectedCard.usage}
           color={selectedCard.color}
           id={selectedCard.id}
           onDelete={deleteSticker}

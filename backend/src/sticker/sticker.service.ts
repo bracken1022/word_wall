@@ -70,14 +70,9 @@ export class StickerService {
           console.log(`🐌 Using full processing for word: "${createStickerDto.word}"`);
         }
         
-        // Use shared word data
-        stickerData = {
-          ...stickerData,
-          meaning: wordEntity.meaning,
-          chineseMeaning: wordEntity.chineseMeaning,
-          usage: wordEntity.usage,
-          scenarios: wordEntity.scenarios,
-        };
+        // Don't copy word data to sticker - use wordEntity relation instead
+        // This ensures sticker always shows the latest word data
+        console.log(`📋 Created word entity with ID: ${wordEntity.id} for sticker`);
       } catch (error) {
         console.error('Shared word creation failed:', error);
         // Continue with manual data if shared word fails
