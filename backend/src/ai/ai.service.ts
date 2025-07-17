@@ -60,7 +60,7 @@ export class AIService {
       for (const [key, prompt] of Object.entries(prompts)) {
         sectionIndex++;
         console.log(`\n--- Processing section ${sectionIndex}/${Object.keys(prompts).length}: ${key} ---`);
-        const sectionResult = await this.makeOllamaRequest(prompt, key);
+        const sectionResult = await this.makeOllamaRequest(`$${prompt} 请不要返回Thinking过程`, key);
         console.log(`📊 Section ${key} result length: ${sectionResult.length}`);
         console.log(`📝 Section ${key} result preview: ${sectionResult.substring(0, 100)}${sectionResult.length > 100 ? '...' : ''}`);
         results.push(sectionResult);
@@ -134,10 +134,6 @@ ${collocations}
       const response = await axios.post(`${this.ollamaUrl}/api/generate`, requestPayload, {
         timeout: 180000  // 3 minute timeout per request to allow for longer generation
       });
-
-      console.log(`📥 Raw response for ${section}:`, JSON.stringify(response.data, null, 2));
-      console.log(`📊 Response status for ${section}:`, response.status);
-      console.log(`📋 Response headers for ${section}:`, response.headers);
 
       let result = response.data.response;
       console.log(`🔍 Original response for ${section} (length: ${result?.length || 0}):`, result);
