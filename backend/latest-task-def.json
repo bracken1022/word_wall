@@ -2,7 +2,7 @@
   "containerDefinitions": [
     {
       "name": "words-wall-backend",
-      "image": "216673926326.dkr.ecr.ap-southeast-1.amazonaws.com/words-wall-backend:improved-prompts-20250717-064652",
+      "image": "216673926326.dkr.ecr.ap-southeast-1.amazonaws.com/words-wall-backend:final-fix-20250717-105249",
       "cpu": 0,
       "portMappings": [
         {
@@ -27,11 +27,11 @@
       "secrets": [
         {
           "name": "JWT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:words-wall-production-jwt-secret"
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:JWT_SECRET"
         },
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:words-wall-production-database-url"
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:DATABASE_URL"
         }
       ],
       "logConfiguration": {
