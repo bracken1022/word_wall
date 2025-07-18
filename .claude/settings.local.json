@@ -151,7 +151,12 @@
       "Bash(yarn start)",
       "Bash(yarn dev:*)",
       "Bash(PORT=3003 yarn start:dev)",
-      "Bash(aws ec2 describe-network-interfaces:*)"
+      "Bash(aws ec2 describe-network-interfaces:*)",
+      "Bash(gh run list:*)",
+      "Bash(export NEXT_PUBLIC_API_BASE_URL=\"http://words-wall-production-alb-904675667.ap-southeast-1.elb.amazonaws.com\")",
+      "Bash(./deployment/deploy-frontend.sh:*)",
+      "Bash(aws s3 cp:*)",
+      "Bash(NODE_ENV=production npm run build)"
     ],
     "deny": []
   }

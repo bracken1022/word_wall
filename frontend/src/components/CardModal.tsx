@@ -64,20 +64,21 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
       return;
     }
     
-    // If no wordEntity.id, we can't fetch word data directly
-    if (!wordEntity?.id) {
-      console.log('❌ No wordEntity.id available, cannot fetch word data');
+    // Use wordEntity.id if available, otherwise try using sticker ID
+    const wordIdToFetch = wordEntity?.id || id;
+    if (!wordIdToFetch) {
+      console.log('❌ No wordEntity.id or sticker ID available, cannot fetch word data');
       setRefreshError('No word data available to refresh');
       setTimeout(() => setRefreshError(null), 3000);
       return;
     }
     
-    console.log(`🔄 Fetching latest word data for ID: ${wordEntity.id}`);
+    console.log(`🔄 Fetching latest word data for ID: ${wordIdToFetch}`);
     setIsRefreshing(true);
     setRefreshError(null);
     
     try {
-      const url = apiUrl(`/words/${wordEntity.id}`);
+      const url = apiUrl(`/words/${wordIdToFetch}`);
       console.log('📡 Making API call to:', url);
       console.log('📡 Headers:', { 'Authorization': `Bearer ${token?.substring(0, 10)}...` });
       
@@ -90,7 +91,7 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
       
       if (response.ok) {
         const updatedWord = await response.json();
-        console.log(`✅ Retrieved latest word data for ID: ${wordEntity.id}`);
+        console.log(`✅ Retrieved latest word data for ID: ${wordIdToFetch}`);
         console.log('📊 Updated word data:', updatedWord);
         
         setCurrentWordData(updatedWord);
@@ -103,7 +104,7 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
     } catch (error) {
-      console.error(`❌ Error fetching word data for ID: ${wordEntity.id}`, error);
+      console.error(`❌ Error fetching word data for ID: ${wordIdToFetch}`, error);
       setRefreshError('Failed to fetch latest word data');
       
       // Auto-clear error after 5 seconds
@@ -131,11 +132,11 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
       setRefreshError(null);
       
       // Fetch latest word data when modal opens
-      if (wordEntity?.id) {
+      if (wordEntity?.id || id) {
         console.log('✅ Calling fetchLatestWordData');
         fetchLatestWordData();
       } else {
-        console.log('❌ No wordEntity.id, skipping fetch');
+        console.log('❌ No wordEntity.id or id, skipping fetch');
       }
     }
   }, [isOpen, usage, wordEntity?.id]);
@@ -225,7 +226,7 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
             setIsFlipped(newFlippedState);
             
             // If flipping to back view, refresh the data
-            if (newFlippedState && wordEntity?.id) {
+            if (newFlippedState && (wordEntity?.id || id)) {
               console.log('✅ Conditions met, calling fetchLatestWordData');
               try {
                 await fetchLatestWordData();
@@ -234,7 +235,7 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
               }
             } else {
               console.log('❌ Conditions not met for fetching data');
-              console.log('   - Reason: newFlippedState =', newFlippedState, ', wordEntity?.id =', wordEntity?.id);
+              console.log('   - Reason: newFlippedState =', newFlippedState, ', wordEntity?.id =', wordEntity?.id, ', id =', id);
             }
           }}
         >
