@@ -16,7 +16,7 @@ on:
 env:
   AWS_REGION: ap-southeast-1
   ECR_REPOSITORY: words-wall-backend
-  ECS_CLUSTER: words-wall-production-cluster
+  ECS_CLUSTER: words-wall-cluster
   ECS_SERVICE: words-wall-backend-service
   TASK_DEFINITION_FAMILY: words-wall-backend-task
 
