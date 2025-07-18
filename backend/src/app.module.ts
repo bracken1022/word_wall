@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { BullModule } from '@nestjs/bull';
 import { StickerModule } from './sticker/sticker.module';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
@@ -63,18 +62,6 @@ import { Label } from './label/label.entity';
           };
         }
       },
-      inject: [ConfigService],
-    }),
-    BullModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        redis: {
-          host: configService.get('REDIS_HOST') || 'localhost',
-          port: configService.get('REDIS_PORT') || 6379,
-          // For production, you might want to use AWS ElastiCache
-          // password: configService.get('REDIS_PASSWORD'),
-        },
-      }),
       inject: [ConfigService],
     }),
     StickerModule,

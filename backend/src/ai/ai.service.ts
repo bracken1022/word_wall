@@ -1,18 +1,22 @@
 import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
 import axios from 'axios';
 
 @Injectable()
 export class AIService {
   private ollamaUrl = 'http://localhost:11434';
 
+  private simpleQueueService: any;
+
   constructor(
-    private configService: ConfigService,
-    @InjectQueue('word-processing') private wordProcessingQueue: Queue
+    private configService: ConfigService
   ) {
     // Only using local Qwen via Ollama - no external API keys needed
+  }
+
+  // Inject the queue service after module initialization to avoid circular dependency
+  setQueueService(queueService: any) {
+    this.simpleQueueService = queueService;
   }
 
   async generateWordDataImmediate(word: string): Promise<{
@@ -61,25 +65,24 @@ export class AIService {
     console.log(`📋 Queueing enhanced processing for word: "${word}" (ID: ${wordId})`);
     
     try {
-      await this.wordProcessingQueue.add('enhance-word-details', {
-        wordId,
-        word
-      }, {
-        delay: 1000, // Small delay to ensure word is saved to database
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 5000,
-        },
-      });
-      
-      console.log(`✅ Successfully queued word processing for: "${word}"`);
+      if (this.simpleQueueService) {
+        await this.simpleQueueService.add('enhance-word-details', {
+          wordId,
+          word
+        }, {
+          delay: 1000, // Small delay to ensure word is saved to database
+          attempts: 3,
+        });
+        
+        console.log(`✅ Successfully queued word processing for: "${word}"`);
+      } else {
+        throw new Error('Queue service not available');
+      }
     } catch (error: any) {
       console.error(`❌ Failed to queue word processing for "${word}":`, error?.message || 'Unknown error');
       console.log(`⚠️ Queue is not available, falling back to direct processing for: "${word}"`);
-      console.log(`💡 Note: Redis queue service may not be configured in this environment`);
       
-      // Fallback to enhanced processing when Redis is not available
+      // Fallback to enhanced processing when queue is not available
       console.log(`🔄 Starting enhanced processing for word: "${word}"`);
       try {
         // Schedule the processing to run asynchronously without blocking

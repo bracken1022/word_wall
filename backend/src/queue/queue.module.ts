@@ -1,38 +1,26 @@
-import { Module } from '@nestjs/common';
-import { BullModule } from '@nestjs/bull';
+import { Module, OnModuleInit } from '@nestjs/common';
 import { WordProcessingConsumer } from './word-processing.consumer';
+import { SimpleQueueService } from './simple-queue.service';
 import { AIModule } from '../ai/ai.module';
 import { WordModule } from '../word/word.module';
+import { AIService } from '../ai/ai.service';
 
 @Module({
   imports: [
-    BullModule.registerQueue({
-      name: 'word-processing',
-      redis: {
-        host: process.env.REDIS_HOST || 'localhost',
-        port: parseInt(process.env.REDIS_PORT || '6379'),
-        maxRetriesPerRequest: 3, // Reduce from default 20 to fail faster
-        enableReadyCheck: false,
-        lazyConnect: true, // Don't connect immediately
-        connectTimeout: 5000, // 5 second timeout
-        commandTimeout: 3000, // 3 second command timeout
-        // For development, use local Redis
-        // For production, you might want to use ElastiCache or another Redis service
-      },
-      defaultJobOptions: {
-        removeOnComplete: 50, // Keep last 50 completed jobs
-        removeOnFail: 100, // Keep last 100 failed jobs
-        attempts: 3,
-        backoff: {
-          type: 'exponential',
-          delay: 2000,
-        },
-      },
-    }),
     AIModule,
     WordModule,
   ],
-  providers: [WordProcessingConsumer],
-  exports: [BullModule],
+  providers: [WordProcessingConsumer, SimpleQueueService],
+  exports: [SimpleQueueService],
 })
-export class QueueModule {}
+export class QueueModule implements OnModuleInit {
+  constructor(
+    private readonly aiService: AIService,
+    private readonly simpleQueueService: SimpleQueueService,
+  ) {}
+
+  onModuleInit() {
+    // Inject the queue service into the AI service after module initialization
+    this.aiService.setQueueService(this.simpleQueueService);
+  }
+}
