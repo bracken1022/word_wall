@@ -38,11 +38,11 @@
       "secrets": [
         {
           "name": "JWT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:words-wall-production-jwt-secret"
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:JWT_SECRET"
         },
         {
           "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:words-wall-production-database-url"
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:216673926326:secret:DATABASE_URL"
         }
       ],
       "healthCheck": {
