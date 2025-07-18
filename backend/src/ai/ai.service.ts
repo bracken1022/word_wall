@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Inject, forwardRef } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -76,12 +76,25 @@ export class AIService {
       console.log(`✅ Successfully queued word processing for: "${word}"`);
     } catch (error: any) {
       console.error(`❌ Failed to queue word processing for "${word}":`, error?.message || 'Unknown error');
-      console.log(`⚠️ Queue is not available, word processing will be skipped for: "${word}"`);
+      console.log(`⚠️ Queue is not available, falling back to direct processing for: "${word}"`);
       console.log(`💡 Note: Redis queue service may not be configured in this environment`);
       
-      // In production without Redis, we could optionally trigger immediate processing
-      // or simply log that enhanced processing is skipped
-      console.log(`📝 Word "${word}" will use basic immediate processing only`);
+      // Fallback to enhanced processing when Redis is not available
+      console.log(`🔄 Starting enhanced processing for word: "${word}"`);
+      try {
+        // Schedule the processing to run asynchronously without blocking
+        setImmediate(async () => {
+          try {
+            await this.generateWordDataLocal(word);
+            console.log(`✅ Enhanced processing completed for word: "${word}"`);
+          } catch (processingError: any) {
+            console.error(`❌ Enhanced processing failed for "${word}":`, processingError?.message || 'Unknown error');
+          }
+        });
+        console.log(`✅ Enhanced processing scheduled for word: "${word}"`);
+      } catch (processingError: any) {
+        console.error(`❌ Failed to schedule enhanced processing for "${word}":`, processingError?.message || 'Unknown error');
+      }
     }
   }
 
