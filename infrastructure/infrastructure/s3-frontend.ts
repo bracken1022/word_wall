@@ -15,7 +15,7 @@ export function createS3Frontend(
 ): S3Frontend {
     // S3 Bucket for frontend
     const frontendBucket = new aws.s3.Bucket("frontend-bucket", {
-        bucket: `${resourcePrefix}-frontend-${Date.now()}`,
+        bucket: "words-wall-frontend-production-1752396973474",
         tags,
     });
 
