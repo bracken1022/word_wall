@@ -157,7 +157,9 @@
       "Bash(./deployment/deploy-frontend.sh:*)",
       "Bash(aws s3 cp:*)",
       "Bash(NODE_ENV=production npm run build)",
-      "WebFetch(domain:words-wall.com)"
+      "WebFetch(domain:words-wall.com)",
+      "Bash(git log:*)",
+      "Bash(git fetch:*)"
     ],
     "deny": []
   }

@@ -1,13 +1,11 @@
-import { Injectable, forwardRef, Inject } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { AIService } from '../ai/ai.service';
 import { WordService } from '../word/word.service';
 
 @Injectable()
 export class WordProcessingConsumer {
   constructor(
-    @Inject(forwardRef(() => AIService))
     private readonly aiService: AIService,
-    @Inject(forwardRef(() => WordService))
     private readonly wordsService: WordService,
   ) {}
 

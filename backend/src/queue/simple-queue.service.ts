@@ -1,5 +1,4 @@
-import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
-import { WordProcessingConsumer } from './word-processing.consumer';
+import { Injectable, Logger } from '@nestjs/common';
 
 interface QueueJob {
   id: string;
@@ -15,13 +14,15 @@ export class SimpleQueueService {
   private readonly logger = new Logger(SimpleQueueService.name);
   private jobs: QueueJob[] = [];
   private processing = false;
+  private wordProcessingConsumer: any;
 
-  constructor(
-    @Inject(forwardRef(() => WordProcessingConsumer))
-    private readonly wordProcessingConsumer: WordProcessingConsumer
-  ) {
+  constructor() {
     // Start processing jobs immediately
     this.startProcessing();
+  }
+
+  setWordProcessingConsumer(consumer: any) {
+    this.wordProcessingConsumer = consumer;
   }
 
   async add(jobName: string, data: any, options: any = {}): Promise<void> {
@@ -92,7 +93,11 @@ export class SimpleQueueService {
 
         // Process the job based on its name
         if (job.name === 'enhance-word-details') {
-          await this.wordProcessingConsumer.enhanceWordDetails(mockJob as any);
+          if (this.wordProcessingConsumer) {
+            await this.wordProcessingConsumer.enhanceWordDetails(mockJob as any);
+          } else {
+            this.logger.warn('WordProcessingConsumer not set, skipping job');
+          }
         } else {
           this.logger.warn(`Unknown job type: ${job.name}`);
         }
