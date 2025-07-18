@@ -1,5 +1,7 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+**Latest Update**: Modal flip API functionality implemented for real-time word data retrieval.
+
 ## Getting Started
 
 First, run the development server:
