@@ -1,19 +1,17 @@
-import { Processor, Process } from '@nestjs/bull';
-import { Job } from 'bull';
-import { Injectable } from '@nestjs/common';
+import { Injectable, forwardRef, Inject } from '@nestjs/common';
 import { AIService } from '../ai/ai.service';
 import { WordService } from '../word/word.service';
 
 @Injectable()
-@Processor('word-processing')
 export class WordProcessingConsumer {
   constructor(
+    @Inject(forwardRef(() => AIService))
     private readonly aiService: AIService,
+    @Inject(forwardRef(() => WordService))
     private readonly wordsService: WordService,
   ) {}
 
-  @Process('enhance-word-details')
-  async enhanceWordDetails(job: Job<{ wordId: number; word: string }>) {
+  async enhanceWordDetails(job: any) {
     const { wordId, word } = job.data;
     
     console.log(`🔄 Processing enhanced details for word: "${word}" (ID: ${wordId})`);

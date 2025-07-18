@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, Inject, forwardRef } from '@nestjs/common';
 import { WordProcessingConsumer } from './word-processing.consumer';
 
 interface QueueJob {
@@ -16,7 +16,10 @@ export class SimpleQueueService {
   private jobs: QueueJob[] = [];
   private processing = false;
 
-  constructor(private readonly wordProcessingConsumer: WordProcessingConsumer) {
+  constructor(
+    @Inject(forwardRef(() => WordProcessingConsumer))
+    private readonly wordProcessingConsumer: WordProcessingConsumer
+  ) {
     // Start processing jobs immediately
     this.startProcessing();
   }
