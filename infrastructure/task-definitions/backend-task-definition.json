@@ -4,8 +4,8 @@
   "requiresCompatibilities": ["FARGATE"],
   "cpu": "2048",
   "memory": "4096",
-  "executionRoleArn": "arn:aws:iam::216673926326:role/words-wall-production-ecs-execution-role",
-  "taskRoleArn": "arn:aws:iam::216673926326:role/words-wall-production-ecs-task-role",
+  "executionRoleArn": "arn:aws:iam::216673926326:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::216673926326:role/ecsTaskRole",
   "containerDefinitions": [
     {
       "name": "words-wall-backend",
