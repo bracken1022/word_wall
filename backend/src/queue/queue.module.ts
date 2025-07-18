@@ -11,6 +11,12 @@ import { WordModule } from '../word/word.module';
       redis: {
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
+        maxRetriesPerRequest: 3, // Reduce from default 20 to fail faster
+        retryDelayOnFailover: 100,
+        enableReadyCheck: false,
+        lazyConnect: true, // Don't connect immediately
+        connectTimeout: 5000, // 5 second timeout
+        commandTimeout: 3000, // 3 second command timeout
         // For development, use local Redis
         // For production, you might want to use ElastiCache or another Redis service
       },

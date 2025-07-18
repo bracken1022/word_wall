@@ -76,6 +76,12 @@ export class AIService {
       console.log(`✅ Successfully queued word processing for: "${word}"`);
     } catch (error: any) {
       console.error(`❌ Failed to queue word processing for "${word}":`, error?.message || 'Unknown error');
+      console.log(`⚠️ Queue is not available, word processing will be skipped for: "${word}"`);
+      console.log(`💡 Note: Redis queue service may not be configured in this environment`);
+      
+      // In production without Redis, we could optionally trigger immediate processing
+      // or simply log that enhanced processing is skipped
+      console.log(`📝 Word "${word}" will use basic immediate processing only`);
     }
   }
 
