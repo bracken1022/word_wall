@@ -12,7 +12,6 @@ import { WordModule } from '../word/word.module';
         host: process.env.REDIS_HOST || 'localhost',
         port: parseInt(process.env.REDIS_PORT || '6379'),
         maxRetriesPerRequest: 3, // Reduce from default 20 to fail faster
-        retryDelayOnFailover: 100,
         enableReadyCheck: false,
         lazyConnect: true, // Don't connect immediately
         connectTimeout: 5000, // 5 second timeout
