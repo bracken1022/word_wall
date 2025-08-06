@@ -32,6 +32,12 @@ export class Word {
   })
   scenarios: string[];
 
+  @Column({ nullable: true })
+  pronunciation?: string;
+
+  @Column({ type: 'integer', default: 5 })
+  rating: number;
+
   @Column({ default: false })
   isProcessing: boolean;
 

@@ -2,6 +2,7 @@
 
 import { useState, useRef } from 'react';
 import { safeString } from '../utils/safeRender';
+import StarRating from './StarRating';
 
 interface StickerProps {
   id: number;
@@ -25,6 +26,8 @@ interface StickerProps {
     scenarios?: string[];
     meaning?: string;
     usage?: string;
+    pronunciation?: string;
+    rating?: number;
   };
 }
 
@@ -114,7 +117,21 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
           }}
         >
           <div className="text-center px-2 sm:px-3">
-            <div className="text-sm sm:text-lg font-bold tracking-tight leading-tight drop-shadow-lg">{word}</div>
+            <div className="flex flex-col items-center">
+              <div className="text-sm sm:text-lg font-bold tracking-tight leading-tight drop-shadow-lg">{word}</div>
+              {wordEntity?.pronunciation && (
+                <div className="text-xs opacity-70 mt-0.5 font-light text-yellow-200">
+                  /{wordEntity.pronunciation}/
+                </div>
+              )}
+              <div className="mt-1">
+                <StarRating
+                  rating={wordEntity?.rating || 5}
+                  readonly={true}
+                  size="small"
+                />
+              </div>
+            </div>
             {wordEntity?.isProcessing ? (
               <div className="text-xs opacity-90 mt-1 font-light">
                 <div className="flex items-center justify-center gap-1">
@@ -155,7 +172,21 @@ export default function Sticker({ id, word, meaning, chineseMeaning, usage, scen
           <div className="h-full flex flex-col text-xs">
             <div className="flex items-center justify-between mb-1 sm:mb-2">
               <div className="font-bold text-white text-xs sm:text-sm drop-shadow-lg flex items-center gap-2">
-                {word}
+                <div className="flex flex-col items-start">
+                  <div className="flex items-center gap-2">
+                    <span>{word}</span>
+                    <StarRating
+                      rating={wordEntity?.rating || 5}
+                      readonly={true}
+                      size="small"
+                    />
+                  </div>
+                  {wordEntity?.pronunciation && (
+                    <div className="text-xs opacity-70 font-light text-yellow-200">
+                      /{wordEntity.pronunciation}/
+                    </div>
+                  )}
+                </div>
                 {isRefreshing && (
                   <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
                 )}

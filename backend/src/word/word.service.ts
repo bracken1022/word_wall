@@ -30,6 +30,8 @@ export class WordService {
     chineseMeaning: string;
     usage: string;
     scenarios: string[];
+    pronunciation?: string;
+    rating?: number;
     isProcessing?: boolean;
     processingStatus?: string;
   }): Promise<Word> {
@@ -39,6 +41,8 @@ export class WordService {
       chineseMeaning: wordData.chineseMeaning,
       usage: wordData.usage,
       scenarios: wordData.scenarios,
+      pronunciation: wordData.pronunciation,
+      rating: wordData.rating || 5,
       isProcessing: wordData.isProcessing || false,
       processingStatus: wordData.processingStatus || 'completed',
     });
@@ -51,6 +55,8 @@ export class WordService {
     chineseMeaning?: string;
     usage?: string;
     scenarios?: string[];
+    pronunciation?: string;
+    rating?: number;
     isProcessing?: boolean;
     processingStatus?: string;
   }): Promise<Word | null> {
@@ -77,6 +83,12 @@ export class WordService {
     if (updateData.processingStatus !== undefined) {
       word.processingStatus = updateData.processingStatus;
     }
+    if (updateData.pronunciation !== undefined) {
+      word.pronunciation = updateData.pronunciation;
+    }
+    if (updateData.rating !== undefined) {
+      word.rating = updateData.rating;
+    }
 
     return this.wordRepository.save(word);
   }
@@ -86,6 +98,8 @@ export class WordService {
     chineseMeaning?: string;
     usage?: string;
     scenarios?: string[];
+    pronunciation?: string;
+    rating?: number;
   }): Promise<Word | null> {
     const word = await this.findById(id);
     if (!word) {
@@ -105,6 +119,12 @@ export class WordService {
     }
     if (updateData.scenarios !== undefined) {
       word.scenarios = updateData.scenarios;
+    }
+    if (updateData.pronunciation !== undefined) {
+      word.pronunciation = updateData.pronunciation;
+    }
+    if (updateData.rating !== undefined) {
+      word.rating = updateData.rating;
     }
 
     const updatedWord = await this.wordRepository.save(word);
@@ -147,6 +167,8 @@ export class WordService {
         chineseMeaning: aiData.chineseMeaning,
         usage: typeof aiData.usage === 'string' ? aiData.usage : JSON.stringify(aiData.usage),
         scenarios: aiData.scenarios,
+        pronunciation: aiData.pronunciation,
+        rating: 5,
         isProcessing: true,
         processingStatus: 'in-progress'
       });
@@ -203,6 +225,8 @@ export class WordService {
         chineseMeaning: aiData.chineseMeaning,
         usage: typeof aiData.usage === 'string' ? aiData.usage : JSON.stringify(aiData.usage),
         scenarios: aiData.scenarios,
+        pronunciation: aiData.pronunciation,
+        rating: 5,
       });
 
       console.log(`💾 Saving new word "${normalizedWord}" to database...`);

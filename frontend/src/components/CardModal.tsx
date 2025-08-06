@@ -6,6 +6,7 @@ import remarkGfm from 'remark-gfm';
 import { safeString } from '../utils/safeRender';
 import { apiUrl } from '../utils/api';
 import { useAuth } from '../contexts/AuthContext';
+import StarRating from './StarRating';
 
 interface CardModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ interface CardModalProps {
     scenarios?: string[];
     meaning?: string;
     usage?: string;
+    pronunciation?: string;
+    rating?: number;
   };
 }
 
@@ -37,6 +40,8 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
     word: string;
     meaning?: string;
     usage?: string;
+    pronunciation?: string;
+    rating?: number;
     isProcessing?: boolean;
     processingStatus?: string;
     scenarios?: string[];
@@ -157,6 +162,8 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
         body: JSON.stringify({
           usage: editContent,
           meaning: editContent, // Use the same content for both fields
+          pronunciation: currentWordData?.pronunciation || wordEntity?.pronunciation || '',
+          rating: currentWordData?.rating || wordEntity?.rating || 5,
         }),
       });
 
@@ -265,7 +272,21 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
               <div className="flex-shrink-0 p-4 sm:p-6 pb-0">
                 <div className="flex items-center justify-between mb-3 sm:mb-4">
                   <div className="font-bold text-white text-xl sm:text-2xl drop-shadow-lg flex items-center gap-3">
-                    {word}
+                    <div className="flex flex-col items-start">
+                      <div className="flex items-center gap-3">
+                        <span>{word}</span>
+                        <StarRating
+                          rating={currentWordData?.rating || wordEntity?.rating || 5}
+                          readonly={true}
+                          size="small"
+                        />
+                      </div>
+                      {(currentWordData?.pronunciation || wordEntity?.pronunciation) && (
+                        <div className="text-sm opacity-70 font-light text-yellow-200">
+                          /{currentWordData?.pronunciation || wordEntity?.pronunciation}/
+                        </div>
+                      )}
+                    </div>
                     {isRefreshing && (
                       <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                     )}
@@ -337,7 +358,7 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
                 
                 {isEditing ? (
                   /* Edit Mode */
-                  <div className="space-y-4">
+                  <div className="space-y-4" onClick={(e) => e.stopPropagation()}>
                     <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4 border border-white/20">
                       <div className="text-white text-lg font-semibold mb-2">编辑 &quot;{word}&quot; 的内容</div>
                       <div className="text-white/80 text-sm mb-4">
@@ -364,9 +385,57 @@ export default function CardModal({ isOpen, onClose, word, usage, color, id, onD
                         </div>
                         <div className="text-white/70 text-xs">💡 3. 将ChatGPT的回答粘贴到下方文本框中</div>
                       </div>
+                      
+                      {/* Pronunciation input field */}
+                      <div className="mb-4">
+                        <label className="block text-white text-sm font-semibold mb-2">
+                          🔊 发音 (可选)
+                        </label>
+                        <input
+                          type="text"
+                          value={currentWordData?.pronunciation || wordEntity?.pronunciation || ''}
+                          onChange={(e) => {
+                            if (currentWordData) {
+                              setCurrentWordData({ ...currentWordData, pronunciation: e.target.value });
+                            }
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                          onFocus={(e) => e.stopPropagation()}
+                          className="w-full p-2 bg-black/30 text-white rounded-lg border border-white/20 focus:border-white/40 focus:outline-none"
+                          placeholder="输入音标，例如: /həˈloʊ/"
+                        />
+                        <div className="text-white/60 text-xs mt-1">
+                          💡 提示：可以从ChatGPT回答中复制音标到这里，或留空
+                        </div>
+                      </div>
+                      
+                      {/* Rating input field */}
+                      <div className="mb-4">
+                        <label className="block text-white text-sm font-semibold mb-2">
+                          ⭐ 熟悉程度 (可选)
+                        </label>
+                        <div className="flex items-center gap-3">
+                          <StarRating
+                            rating={currentWordData?.rating || wordEntity?.rating || 5}
+                            onChange={(rating) => {
+                              if (currentWordData) {
+                                setCurrentWordData({ ...currentWordData, rating });
+                              }
+                            }}
+                            showLabel={true}
+                            size="medium"
+                          />
+                        </div>
+                        <div className="text-white/60 text-xs mt-1">
+                          💡 提示：1星=很难，5星=很熟悉，用于跟踪学习进度
+                        </div>
+                      </div>
+                      
                       <textarea
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
+                        onClick={(e) => e.stopPropagation()}
+                        onFocus={(e) => e.stopPropagation()}
                         className="w-full h-96 p-4 bg-black/30 text-white rounded-xl border border-white/20 focus:border-white/40 focus:outline-none resize-none"
                         placeholder={`请在此处输入或粘贴关于 &quot;${word}&quot; 的详细解释...`}
                       />

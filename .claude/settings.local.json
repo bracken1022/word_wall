@@ -159,7 +159,9 @@
       "Bash(NODE_ENV=production npm run build)",
       "WebFetch(domain:words-wall.com)",
       "Bash(git log:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(NEXT_PUBLIC_API_BASE_URL=https://words-wall.com NODE_ENV=production npm run build)",
+      "Bash(NEXT_PUBLIC_API_BASE_URL=https://api.words-wall.com NODE_ENV=production npm run build)"
     ],
     "deny": []
   }

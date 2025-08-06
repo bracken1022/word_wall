@@ -24,6 +24,7 @@ export class AIService {
     chineseMeaning: string;
     usage: string;
     scenarios: string[];
+    pronunciation?: string;
   }> {
     console.log(`🚀 Starting immediate word generation for: "${word}"`);
     const startTime = Date.now();
@@ -45,7 +46,8 @@ export class AIService {
         meaning: `### 🎯 词性与基本含义\n${basicMeaning}`,
         chineseMeaning: word,
         usage: `### 🎯 词性与基本含义\n${basicMeaning}`,
-        scenarios: ['basic-meaning', 'processing']
+        scenarios: ['basic-meaning', 'processing'],
+        pronunciation: undefined
       };
     } catch (error: any) {
       console.error(`❌ Immediate generation failed for "${word}":`, error?.message || 'Unknown error');
@@ -56,7 +58,8 @@ export class AIService {
         meaning: `### 🎯 词性与基本含义\n${fallback}`,
         chineseMeaning: word,
         usage: `### 🎯 词性与基本含义\n${fallback}`,
-        scenarios: ['basic-meaning', 'fallback']
+        scenarios: ['basic-meaning', 'fallback'],
+        pronunciation: undefined
       };
     }
   }
@@ -106,6 +109,7 @@ export class AIService {
     chineseMeaning: string;
     usage: string;
     scenarios: string[];
+    pronunciation?: string;
   }> {
     try {
       console.log(`🤖 Starting multi-request approach for word: "${word}"`);
@@ -200,7 +204,8 @@ ${collocations}
         meaning: formattedResponse,
         chineseMeaning: word,
         usage: formattedResponse,
-        scenarios: ['multi-request', 'qwen']
+        scenarios: ['multi-request', 'qwen'],
+        pronunciation: undefined
       };
     } catch (error) {
       console.error('Multi-request Qwen service error:', error);
@@ -287,6 +292,7 @@ ${collocations}
     chineseMeaning: string;
     usage: string;
     scenarios: string[];
+    pronunciation?: string;
   }> {
     console.log(`🚀 === STARTING AI WORD GENERATION FOR: "${word}" ===`);
     const startTime = Date.now();
@@ -344,7 +350,8 @@ ${collocations}
         '待补充使用场景',
         '待补充例句',
         '待补充近义词'
-      ]
+      ],
+      pronunciation: undefined
     };
   }
 
@@ -390,7 +397,8 @@ Remember "${word}" - understanding its core meaning is the key to mastery.
         '书面表达应用', 
         '学术语境运用',
         '口语交流场景'
-      ]
+      ],
+      pronunciation: undefined
     };
   }
 }

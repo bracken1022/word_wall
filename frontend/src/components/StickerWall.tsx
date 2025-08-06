@@ -27,6 +27,8 @@ interface StickerData {
     meaning?: string;
     usage?: string;
     scenarios?: string[];
+    pronunciation?: string;
+    rating?: number;
   };
 }
 

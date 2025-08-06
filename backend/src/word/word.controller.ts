@@ -20,6 +20,8 @@ export class WordController {
       chineseMeaning?: string;
       usage?: string;
       scenarios?: string[];
+      pronunciation?: string;
+      rating?: number;
     }
   ) {
     console.log(`📝 Updating word with ID: ${id}`);
