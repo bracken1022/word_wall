@@ -1,152 +1,152 @@
-name: 🔧 Maintenance & Monitoring
+#name: 🔧 Maintenance & Monitoring
+#
+#on:
+#  schedule:
+#    # Run daily at 2 AM UTC
+#    - cron: '0 2 * * *'
+#  workflow_dispatch:
+#
+#jobs:
+#  dependency-updates:
+#    name: 📦 Check Dependency Updates
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: 📥 Checkout code
+#        uses: actions/checkout@v4
 
-on:
-  schedule:
-    # Run daily at 2 AM UTC
-    - cron: '0 2 * * *'
-  workflow_dispatch:
+#      - name: 📦 Setup Node.js
+#        uses: actions/setup-node@v4
+#        with:
+#          node-version: '20'
+#
+#      - name: 🔍 Check backend dependencies
+#        working-directory: ./backend
+#        run: |
+#          echo "## 📦 Backend Dependency Status" >> $GITHUB_STEP_SUMMARY
+#          yarn outdated || echo "All dependencies up to date" >> $GITHUB_STEP_SUMMARY
+#
+#      - name: 🔍 Check frontend dependencies
+#        working-directory: ./frontend
+#        run: |
+#          echo "## 🎨 Frontend Dependency Status" >> $GITHUB_STEP_SUMMARY
+#          yarn outdated || echo "All dependencies up to date" >> $GITHUB_STEP_SUMMARY
+#
+#      - name: 🛡️ Security audit
+#        run: |
+#          echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
+#
+#          cd backend
+#          npm audit --audit-level=moderate || echo "Backend security check completed" >> $GITHUB_STEP_SUMMARY
+#
+#          cd ../frontend
+#          npm audit --audit-level=moderate || echo "Frontend security check completed" >> $GITHUB_STEP_SUMMARY
 
-jobs:
-  dependency-updates:
-    name: 📦 Check Dependency Updates
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📥 Checkout code
-        uses: actions/checkout@v4
-
-      - name: 📦 Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: 🔍 Check backend dependencies
-        working-directory: ./backend
-        run: |
-          echo "## 📦 Backend Dependency Status" >> $GITHUB_STEP_SUMMARY
-          yarn outdated || echo "All dependencies up to date" >> $GITHUB_STEP_SUMMARY
-
-      - name: 🔍 Check frontend dependencies
-        working-directory: ./frontend
-        run: |
-          echo "## 🎨 Frontend Dependency Status" >> $GITHUB_STEP_SUMMARY
-          yarn outdated || echo "All dependencies up to date" >> $GITHUB_STEP_SUMMARY
-
-      - name: 🛡️ Security audit
-        run: |
-          echo "## 🔒 Security Audit Results" >> $GITHUB_STEP_SUMMARY
-          
-          cd backend
-          npm audit --audit-level=moderate || echo "Backend security check completed" >> $GITHUB_STEP_SUMMARY
-          
-          cd ../frontend
-          npm audit --audit-level=moderate || echo "Frontend security check completed" >> $GITHUB_STEP_SUMMARY
-
-  health-check:
-    name: 🏥 Application Health Check
-    runs-on: ubuntu-latest
-    if: ${{ vars.PRODUCTION_URL }}
-    steps:
-      - name: 🔍 Check backend health
-        run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.PRODUCTION_URL }}/health || echo "000")
-          if [ "$response" = "200" ]; then
-            echo "✅ Backend health check passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Backend health check failed (HTTP $response)" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-      - name: 🔍 Check frontend availability
-        if: ${{ vars.FRONTEND_URL }}
-        run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.FRONTEND_URL }} || echo "000")
-          if [ "$response" = "200" ]; then
-            echo "✅ Frontend availability check passed" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "❌ Frontend availability check failed (HTTP $response)" >> $GITHUB_STEP_SUMMARY
-            exit 1
-          fi
-
-  performance-monitoring:
-    name: 📊 Performance Monitoring
-    runs-on: ubuntu-latest
-    if: ${{ vars.PRODUCTION_URL }}
-    steps:
-      - name: 📈 Performance test
-        run: |
-          # Simple performance test using curl
-          start_time=$(date +%s%N)
-          curl -s ${{ vars.PRODUCTION_URL }}/health > /dev/null
-          end_time=$(date +%s%N)
-          duration_ms=$(( (end_time - start_time) / 1000000 ))
-          
-          echo "## ⚡ Performance Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "- **Response Time**: ${duration_ms}ms" >> $GITHUB_STEP_SUMMARY
-          
-          if [ $duration_ms -lt 1000 ]; then
-            echo "- **Status**: ✅ Excellent (< 1s)" >> $GITHUB_STEP_SUMMARY
-          elif [ $duration_ms -lt 3000 ]; then
-            echo "- **Status**: ⚠️ Good (< 3s)" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Status**: ❌ Slow (> 3s)" >> $GITHUB_STEP_SUMMARY
-          fi
-
-  cleanup:
-    name: 🧹 Cleanup Old Artifacts
-    runs-on: ubuntu-latest
-    steps:
-      - name: 🗑️ Clean old workflow runs
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const runs = await github.rest.actions.listWorkflowRuns({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              workflow_id: 'ci.yml',
-              status: 'completed'
-            });
-            
-            // Keep last 50 runs, delete older ones
-            const runsToDelete = runs.data.workflow_runs.slice(50);
-            
-            for (const run of runsToDelete) {
-              if (run.status === 'completed' && 
-                  new Date() - new Date(run.created_at) > 30 * 24 * 60 * 60 * 1000) { // 30 days
-                await github.rest.actions.deleteWorkflowRun({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  run_id: run.id
-                });
-              }
-            }
-
-  database-backup:
-    name: 💾 Database Backup Check
-    runs-on: ubuntu-latest
-    steps:
-      - name: 📋 Backup reminder
-        run: |
-          echo "## 💾 Database Backup Reminder" >> $GITHUB_STEP_SUMMARY
-          echo "- Ensure EFS backups are configured" >> $GITHUB_STEP_SUMMARY
-          echo "- Check AWS Backup service status" >> $GITHUB_STEP_SUMMARY
-          echo "- Verify backup retention policies" >> $GITHUB_STEP_SUMMARY
-          echo "- Test backup restoration process monthly" >> $GITHUB_STEP_SUMMARY
-
-  maintenance-summary:
-    name: 📋 Maintenance Summary
-    runs-on: ubuntu-latest
-    needs: [dependency-updates, health-check, performance-monitoring, cleanup, database-backup]
-    if: always()
-    steps:
-      - name: 📊 Create maintenance report
-        run: |
-          echo "## 🔧 Daily Maintenance Report - $(date +'%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📊 Job Status Summary:" >> $GITHUB_STEP_SUMMARY
-          echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Dependency Updates | ${{ needs.dependency-updates.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Health Check | ${{ needs.health-check.result == 'success' && '✅ Healthy' || needs.health-check.result == 'skipped' && '⏭️ Skipped' || '❌ Issues' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Performance Monitor | ${{ needs.performance-monitoring.result == 'success' && '✅ Good' || needs.performance-monitoring.result == 'skipped' && '⏭️ Skipped' || '❌ Slow' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Cleanup | ${{ needs.cleanup.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Backup Check | ${{ needs.database-backup.result == 'success' && '✅ Verified' || '❌ Issues' }} |" >> $GITHUB_STEP_SUMMARY
+#  health-check:
+#    name: 🏥 Application Health Check
+#    runs-on: ubuntu-latest
+#    if: ${{ vars.PRODUCTION_URL }}
+#    steps:
+#      - name: 🔍 Check backend health
+#        run: |
+#          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.PRODUCTION_URL }}/health || echo "000")
+#          if [ "$response" = "200" ]; then
+#            echo "✅ Backend health check passed" >> $GITHUB_STEP_SUMMARY
+#          else
+#            echo "❌ Backend health check failed (HTTP $response)" >> $GITHUB_STEP_SUMMARY
+#            exit 1
+#          fi
+#
+#      - name: 🔍 Check frontend availability
+#        if: ${{ vars.FRONTEND_URL }}
+#        run: |
+#          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ vars.FRONTEND_URL }} || echo "000")
+#          if [ "$response" = "200" ]; then
+#            echo "✅ Frontend availability check passed" >> $GITHUB_STEP_SUMMARY
+#          else
+#            echo "❌ Frontend availability check failed (HTTP $response)" >> $GITHUB_STEP_SUMMARY
+#            exit 1
+#          fi
+#
+#  performance-monitoring:
+#    name: 📊 Performance Monitoring
+#    runs-on: ubuntu-latest
+#    if: ${{ vars.PRODUCTION_URL }}
+#    steps:
+#      - name: 📈 Performance test
+#        run: |
+#          # Simple performance test using curl
+#          start_time=$(date +%s%N)
+#          curl -s ${{ vars.PRODUCTION_URL }}/health > /dev/null
+#          end_time=$(date +%s%N)
+#          duration_ms=$(( (end_time - start_time) / 1000000 ))
+#
+#          echo "## ⚡ Performance Metrics" >> $GITHUB_STEP_SUMMARY
+#          echo "- **Response Time**: ${duration_ms}ms" >> $GITHUB_STEP_SUMMARY
+#
+#          if [ $duration_ms -lt 1000 ]; then
+#            echo "- **Status**: ✅ Excellent (< 1s)" >> $GITHUB_STEP_SUMMARY
+#          elif [ $duration_ms -lt 3000 ]; then
+#            echo "- **Status**: ⚠️ Good (< 3s)" >> $GITHUB_STEP_SUMMARY
+#          else
+#            echo "- **Status**: ❌ Slow (> 3s)" >> $GITHUB_STEP_SUMMARY
+#          fi
+#
+#  cleanup:
+#    name: 🧹 Cleanup Old Artifacts
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: 🗑️ Clean old workflow runs
+#        uses: actions/github-script@v6
+#        with:
+#          script: |
+#            const runs = await github.rest.actions.listWorkflowRuns({
+#              owner: context.repo.owner,
+#              repo: context.repo.repo,
+#              workflow_id: 'ci.yml',
+#              status: 'completed'
+#            });
+#
+#            // Keep last 50 runs, delete older ones
+#            const runsToDelete = runs.data.workflow_runs.slice(50);
+#
+#            for (const run of runsToDelete) {
+#              if (run.status === 'completed' &&
+#                  new Date() - new Date(run.created_at) > 30 * 24 * 60 * 60 * 1000) { // 30 days
+#                await github.rest.actions.deleteWorkflowRun({
+#                  owner: context.repo.owner,
+#                  repo: context.repo.repo,
+#                  run_id: run.id
+#                });
+#              }
+#            }
+#
+#  database-backup:
+#    name: 💾 Database Backup Check
+#    runs-on: ubuntu-latest
+#    steps:
+#      - name: 📋 Backup reminder
+#        run: |
+#          echo "## 💾 Database Backup Reminder" >> $GITHUB_STEP_SUMMARY
+#          echo "- Ensure EFS backups are configured" >> $GITHUB_STEP_SUMMARY
+#          echo "- Check AWS Backup service status" >> $GITHUB_STEP_SUMMARY
+#          echo "- Verify backup retention policies" >> $GITHUB_STEP_SUMMARY
+#          echo "- Test backup restoration process monthly" >> $GITHUB_STEP_SUMMARY
+#
+#  maintenance-summary:
+#    name: 📋 Maintenance Summary
+#    runs-on: ubuntu-latest
+#    needs: [dependency-updates, health-check, performance-monitoring, cleanup, database-backup]
+#    if: always()
+#    steps:
+#      - name: 📊 Create maintenance report
+#        run: |
+#          echo "## 🔧 Daily Maintenance Report - $(date +'%Y-%m-%d')" >> $GITHUB_STEP_SUMMARY
+#          echo "" >> $GITHUB_STEP_SUMMARY
+#          echo "### 📊 Job Status Summary:" >> $GITHUB_STEP_SUMMARY
+#          echo "| Task | Status |" >> $GITHUB_STEP_SUMMARY
+#          echo "|------|--------|" >> $GITHUB_STEP_SUMMARY
+#          echo "| Dependency Updates | ${{ needs.dependency-updates.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+#          echo "| Health Check | ${{ needs.health-check.result == 'success' && '✅ Healthy' || needs.health-check.result == 'skipped' && '⏭️ Skipped' || '❌ Issues' }} |" >> $GITHUB_STEP_SUMMARY
+#          echo "| Performance Monitor | ${{ needs.performance-monitoring.result == 'success' && '✅ Good' || needs.performance-monitoring.result == 'skipped' && '⏭️ Skipped' || '❌ Slow' }} |" >> $GITHUB_STEP_SUMMARY
+#          echo "| Cleanup | ${{ needs.cleanup.result == 'success' && '✅ Completed' || '❌ Failed' }} |" >> $GITHUB_STEP_SUMMARY
+#          echo "| Backup Check | ${{ needs.database-backup.result == 'success' && '✅ Verified' || '❌ Issues' }} |" >> $GITHUB_STEP_SUMMARY
